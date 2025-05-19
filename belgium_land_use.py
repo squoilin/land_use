@@ -281,6 +281,60 @@ def efficient_region_grow(mask, areas, progress_step=0.05, max_iter=1_000_000):
         region_map_remapped[region_map == i] = remap[i]
     return region_map_remapped
 
+def find_boundary_pixels(region_map):
+    # Returns a list of (y, x) for pixels on a region boundary
+    boundary = np.zeros_like(region_map, dtype=bool)
+    for dy, dx in [(-1,0),(1,0),(0,-1),(0,1)]:
+        shifted = np.roll(region_map, shift=(dy, dx), axis=(0, 1))
+        boundary |= (region_map != shifted)
+    boundary &= (region_map != -1)
+    return np.argwhere(boundary)
+
+def is_contiguous(region_map, region_label, y, x):
+    # Check if removing (y, x) from region_label disconnects the region
+    # Simple check: after removal, does at least one neighbor remain with the same label?
+    for dy, dx in [(-1,0),(1,0),(0,-1),(0,1)]:
+        ny, nx = y+dy, x+dx
+        if 0 <= ny < region_map.shape[0] and 0 <= nx < region_map.shape[1]:
+            if region_map[ny, nx] == region_label:
+                return True
+    return False
+
+def pixel_exchange(region_map, target_pixels, max_iters=10):
+    N = len(target_pixels)
+    for it in range(max_iters):
+        improved = False
+        area = np.array([np.sum(region_map == i) for i in range(N)])
+        area_error = area - target_pixels
+        total_error = np.sum(np.abs(area_error))
+        boundary_pixels = find_boundary_pixels(region_map)
+        np.random.shuffle(boundary_pixels)  # randomize order for fairness
+        for y, x in boundary_pixels:
+            label = region_map[y, x]
+            for dy, dx in [(-1,0),(1,0),(0,-1),(0,1)]:
+                ny, nx = y+dy, x+dx
+                if 0 <= ny < region_map.shape[0] and 0 <= nx < region_map.shape[1]:
+                    nlabel = region_map[ny, nx]
+                    if nlabel == -1 or nlabel == label:
+                        continue
+                    # Would swapping (y,x) to nlabel reduce total error?
+                    new_area = area.copy()
+                    new_area[label] -= 1
+                    new_area[nlabel] += 1
+                    new_error = np.sum(np.abs(new_area - target_pixels))
+                    if new_error < total_error and is_contiguous(region_map, label, y, x):
+                        region_map[y, x] = nlabel
+                        area = new_area
+                        area_error = area - target_pixels
+                        total_error = new_error
+                        improved = True
+                        break  # Only one swap per pixel per iteration
+        print(f"Pixel exchange iter {it+1}: total area error {total_error}")
+        if not improved:
+            print("No further improvement in pixel exchange.")
+            break
+    return region_map
+
 def main():
     download_belgium()
     belgium = gpd.read_file(BELGIUM_GEOJSON)
@@ -306,6 +360,8 @@ def main():
     for attempt in range(attempts):
         print(f"\nAttempt {attempt+1}/{attempts}")
         region_map = efficient_region_grow(mask, norm_areas)
+        # Post-process with pixel exchange
+        region_map = pixel_exchange(region_map, target_pixels, max_iters=10)
         actuals = [np.sum(region_map == i) for i in range(N)]
         error = sum(abs(a - t) for a, t in zip(actuals, target_pixels))
         print(f"Total area error: {error}")
