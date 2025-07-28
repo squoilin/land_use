@@ -122,17 +122,22 @@ def build_efficient_adjacency(units_gdf):
     return adjacencies
 
 def select_optimal_seeds(units_gdf, categories, adjacencies):
-    """Select optimal seed units for each category based on connectivity and area distribution"""
+    """Select optimal seed units for each category based on connectivity and spatial distribution"""
     print("🌱 SELECTING OPTIMAL SEEDS FOR REGION GROWING...")
     print("-" * 60)
     start_time = time.time()
     
-    # Create efficient lookup for unit centroids
+    # Create efficient lookup for unit centroids and bounds
     print(f"📊 Preparing seed selection for {len(categories)} categories...")
     unit_centroids = {row['unit_id']: row.geometry.centroid for _, row in units_gdf.iterrows()}
     total_area = units_gdf['area_km2'].sum()
     
+    # Get Belgium bounds for spatial distribution
+    min_x, min_y, max_x, max_y = units_gdf.total_bounds
+    center_x, center_y = (min_x + max_x) / 2, (min_y + max_y) / 2
+    
     seeds = {}
+    used_seeds = set()  # Track used seeds to avoid duplicates
     
     for i, category in enumerate(categories, 1):
         category_name = category['name']
@@ -150,33 +155,60 @@ def select_optimal_seeds(units_gdf, categories, adjacencies):
         best_unit_area = 0
         candidates_evaluated = 0
         
-        # Sample units for efficiency
-        sample_size = min(1000, len(units_gdf))
-        sample_units = units_gdf.sample(n=sample_size, random_state=42)
+        # Use different random seed for each category to avoid same samples
+        sample_size = min(2000, len(units_gdf))  # Increased sample size
+        np.random.seed(42 + i)  # Different seed for each category
+        sample_indices = np.random.choice(len(units_gdf), size=sample_size, replace=False)
+        sample_units = units_gdf.iloc[sample_indices]
+        
+        # Define target region center based on area fraction and category index
+        # Distribute categories spatially to avoid clustering
+        angle = (i - 1) * (2 * np.pi / len(categories))  # Distribute around circle
+        target_radius = 50000 * np.sqrt(area_fraction)  # Larger categories toward center
+        target_x = center_x + target_radius * np.cos(angle)
+        target_y = center_y + target_radius * np.sin(angle)
         
         for _, unit in sample_units.iterrows():
             unit_id = unit['unit_id']
+            
+            # Skip already used seeds
+            if unit_id in used_seeds:
+                continue
+                
             unit_area = unit['area_km2']
             
             # Calculate connectivity score
             neighbor_count = len(adjacencies.get(unit_id, []))
+            connectivity_score = min(neighbor_count / 8.0, 1.0)  # Normalize to 0-1
             
-            # Calculate position score (prefer central positions for large categories)
+            # Calculate spatial distribution score - prefer units near target location
             unit_centroid = unit_centroids[unit_id]
+            if hasattr(unit_centroid, 'x') and hasattr(unit_centroid, 'y'):
+                distance_to_target = np.sqrt((unit_centroid.x - target_x)**2 + (unit_centroid.y - target_y)**2)
+                # Convert distance score (closer = better)
+                max_distance = np.sqrt((max_x - min_x)**2 + (max_y - min_y)**2)
+                spatial_score = max(0, 1.0 - (distance_to_target / max_distance))
+            else:
+                spatial_score = 0.5  # Default if geometry issues
             
-            # Distance to geographic center of Belgium (approximate)
-            belgium_center_x, belgium_center_y = 4.3517, 50.8503  # Brussels approx
-            # Convert to projected coordinates if needed (simplified)
+            # Area appropriateness score
+            area_score = min(unit_area / 5.0, 1.0)  # Prefer reasonable sized units
             
-            # Combined score
-            connectivity_score = min(neighbor_count / 10.0, 1.0)  # Normalize to 0-1
-            area_score = min(unit_area / 10.0, 1.0)  # Prefer reasonable sized units
-            
-            # For larger categories, prefer more central and well-connected units
-            if target_area > 1000:  # Large categories
-                final_score = connectivity_score * 2.0 + area_score
+            # Category-specific scoring
+            if target_area > 5000:  # Very large categories (Agricultural, Forest)
+                final_score = connectivity_score * 3.0 + spatial_score * 2.0 + area_score
+            elif target_area > 1000:  # Large categories 
+                final_score = connectivity_score * 2.0 + spatial_score * 3.0 + area_score
             else:  # Small categories
-                final_score = connectivity_score + area_score * 2.0
+                final_score = connectivity_score * 1.5 + spatial_score * 1.0 + area_score * 2.0
+            
+            # Bonus for well-connected units
+            if neighbor_count >= 6:
+                final_score *= 1.2
+            
+            # Penalty for very small units for large categories
+            if target_area > 1000 and unit_area < 0.5:
+                final_score *= 0.5
             
             if final_score > best_score:
                 best_score = final_score
@@ -187,6 +219,7 @@ def select_optimal_seeds(units_gdf, categories, adjacencies):
         
         if best_unit_id is not None:
             seeds[category_name] = best_unit_id
+            used_seeds.add(best_unit_id)  # Mark as used
             neighbor_count = len(adjacencies.get(best_unit_id, []))
             completion_pct = (best_unit_area / target_area) * 100
             print(f"     ✅ Selected unit {best_unit_id} (area: {best_unit_area:.3f} km², score: {best_score:.3f})")
@@ -198,6 +231,7 @@ def select_optimal_seeds(units_gdf, categories, adjacencies):
     print(f"\n✅ SEED SELECTION COMPLETED:")
     print(f"   Duration: {end_time - start_time:.2f} seconds")
     print(f"   Seeds selected: {len(seeds)}/{len(categories)} categories")
+    print(f"   Unique seeds: {len(set(seeds.values()))} (should equal {len(seeds)})")
     
     return seeds
 
@@ -301,9 +335,22 @@ def controlled_contiguous_region_growing(units_gdf, categories, adjacencies, see
             target_area = region_targets[category_name]
             completion_ratio = current_area / target_area if target_area > 0 else 1
             
+            # Tighter area control for better accuracy - different limits by category size
+            if target_area > 1000:  # Large categories - allow 2% overshoot
+                max_overshoot = 1.02
+            else:  # Small categories - allow 3% overshoot (they need more flexibility)
+                max_overshoot = 1.03
+                
             # Only consider categories that haven't exceeded their limit
-            if completion_ratio < 1.05:  # Allow 5% overshoot max
-                priority = (target_area - current_area) / target_area if target_area > 0 else 0
+            if completion_ratio < max_overshoot:
+                # Enhanced priority calculation
+                if completion_ratio < 0.97:  # Still significantly under target
+                    priority = (target_area - current_area) / target_area * 2.0  # High priority
+                elif completion_ratio < 1.0:  # Close to target but under
+                    priority = (target_area - current_area) / target_area * 1.5  # Medium priority  
+                else:  # Over target but within limit
+                    priority = (target_area - current_area) / target_area * 0.5  # Low priority
+                    
                 active_categories.append((priority, category_name, category))
         
         if not active_categories:
@@ -387,63 +434,135 @@ def controlled_contiguous_region_growing(units_gdf, categories, adjacencies, see
     print(f"   Iterations: {iteration}")
     print(f"   Units assigned: {len(unit_assignments)}/{total_units} ({len(unit_assignments)/total_units*100:.1f}%)")
     
-    # OPTIMIZED FINAL DISTRIBUTION - much faster approach
+    # IMPROVED FINAL DISTRIBUTION - smarter approach for area accuracy
     unassigned_units = [unit_id for unit_id in unit_lookup.keys() if unit_id not in unit_assignments]
     
     if unassigned_units and not check_timeout("final distribution"):
-        print(f"\n📦 FAST DISTRIBUTION OF {len(unassigned_units)} REMAINING UNITS...")
+        print(f"\n📦 SMART DISTRIBUTION OF {len(unassigned_units)} REMAINING UNITS...")
         print("-" * 50)
         
-        # Simple strategy: assign to categories with largest deficits in chunks
-        category_deficits = []
+        # Calculate area deficits and priorities
+        category_needs = []
         for category in categories:
             category_name = category['name']
             current = region_areas[category_name]
             target = region_targets[category_name]
-            deficit = max(0, target - current)
-            if deficit > 0:
-                category_deficits.append((deficit, category_name))
-        
-        category_deficits.sort(reverse=True)  # Largest deficit first
-        
-        if category_deficits:
-            # Distribute proportionally without expensive proximity calculations
-            total_deficit = sum(deficit for deficit, _ in category_deficits)
             
+            # Calculate both absolute and percentage deficit
+            absolute_deficit = max(0, target - current)
+            percentage_deficit = (target - current) / target if target > 0 else 0
+            
+            # Priority scoring: weight by both deficit size and percentage
+            if absolute_deficit > 0:
+                if target > 1000:  # Large categories - prioritize absolute deficit
+                    priority_score = absolute_deficit * 0.7 + percentage_deficit * target * 0.3
+                else:  # Small categories - prioritize percentage deficit
+                    priority_score = absolute_deficit * 0.3 + percentage_deficit * target * 0.7
+                
+                category_needs.append((priority_score, absolute_deficit, category_name, current, target))
+        
+        category_needs.sort(reverse=True)  # Highest priority first
+        
+        if category_needs:
+            print(f"     📊 Distribution priorities:")
+            for i, (priority, deficit, cat_name, current, target) in enumerate(category_needs[:5], 1):
+                pct_deficit = ((target - current) / target * 100) if target > 0 else 0
+                print(f"     {i}. {cat_name:<30} deficit: {deficit:>6.1f} km² ({pct_deficit:>5.1f}%)")
+            
+            # Smart assignment strategy: assign to categories with borders near unassigned units
             assigned_count = 0
-            for i, (deficit, category_name) in enumerate(category_deficits, 1):
-                if assigned_count >= len(unassigned_units):
+            assignment_attempts = 0
+            max_attempts = len(unassigned_units) * 3  # Prevent infinite loops
+            
+            # Create lookup of which categories border which unassigned units
+            unassigned_borders = {}
+            for unit_id in unassigned_units:
+                bordering_categories = set()
+                for neighbor_id in adjacencies.get(unit_id, []):
+                    neighbor_cat = unit_assignments.get(neighbor_id)
+                    if neighbor_cat:
+                        bordering_categories.add(neighbor_cat)
+                unassigned_borders[unit_id] = bordering_categories
+            
+            # Process units in smart order: those with fewer bordering categories first (easier to assign)
+            sorted_unassigned = sorted(unassigned_units, 
+                                     key=lambda uid: len(unassigned_borders.get(uid, set())))
+            
+            for unit_id in sorted_unassigned:
+                if assigned_count >= len(unassigned_units) or assignment_attempts >= max_attempts:
                     break
                 
-                # Calculate proportion based on deficit
-                proportion = deficit / total_deficit if total_deficit > 0 else 1.0 / len(category_deficits)
-                units_for_category = int(len(unassigned_units) * proportion)
+                assignment_attempts += 1
+                unit = unit_lookup[unit_id]
+                unit_area = unit['area_km2']
                 
-                # Assign units to this category
-                end_idx = min(assigned_count + units_for_category, len(unassigned_units))
+                # Find best category for this unit
+                best_category = None
+                best_score = -1
                 
-                for unit_id in unassigned_units[assigned_count:end_idx]:
-                    unit_assignments[unit_id] = category_name
-                    unit = unit_lookup[unit_id]
-                    region_areas[category_name] += unit['area_km2']
+                bordering_cats = unassigned_borders.get(unit_id, set())
                 
-                units_assigned = end_idx - assigned_count
-                assigned_count = end_idx
-                print(f"  {i:2}/{len(category_deficits)} 📌 {category_name:<30} - Assigned: {units_assigned:>4} units "
-                      f"(deficit: {deficit:>6.0f} km²)")
+                # Consider categories that: 1) border this unit, 2) have deficit, 3) are high priority
+                candidate_categories = []
+                for priority, deficit, cat_name, current, target in category_needs:
+                    if deficit > 0:  # Still has deficit
+                        new_area = region_areas[cat_name] + unit_area
+                        new_deficit = max(0, target - new_area)
+                        
+                        # Calculate assignment score
+                        if cat_name in bordering_cats:
+                            # Bordering category - good for contiguity
+                            border_bonus = 3.0
+                        else:
+                            # Non-bordering - small penalty but still possible
+                            border_bonus = 0.5
+                        
+                        # Area improvement score
+                        area_improvement = deficit - new_deficit
+                        area_score = area_improvement / target if target > 0 else 0
+                        
+                        # Deficit urgency score
+                        deficit_score = deficit / target if target > 0 else 0
+                        
+                        final_score = border_bonus * area_score * (1.0 + deficit_score)
+                        
+                        candidate_categories.append((final_score, cat_name, new_deficit))
+                
+                # Select best category
+                if candidate_categories:
+                    candidate_categories.sort(reverse=True)  # Highest score first
+                    best_score, best_category, remaining_deficit = candidate_categories[0]
+                
+                # Assign to best category
+                if best_category and best_score > 0:
+                    unit_assignments[unit_id] = best_category
+                    region_areas[best_category] += unit_area
+                    assigned_count += 1
+                    
+                    # Update category_needs list
+                    category_needs = [(p, max(0, region_targets[cn] - region_areas[cn]), cn, 
+                                     region_areas[cn], region_targets[cn]) 
+                                    for p, d, cn, c, t in category_needs]
+                    category_needs = [item for item in category_needs if item[1] > 0]
+                    category_needs.sort(reverse=True)
             
-            # Assign any remaining units to the largest deficit category
-            if assigned_count < len(unassigned_units):
-                if category_deficits:
-                    largest_deficit_category = category_deficits[0][1]
-                    remaining_units = unassigned_units[assigned_count:]
-                    
-                    for unit_id in remaining_units:
-                        unit_assignments[unit_id] = largest_deficit_category
-                        unit = unit_lookup[unit_id]
-                        region_areas[largest_deficit_category] += unit['area_km2']
-                    
-                    print(f"  ⬆️  {largest_deficit_category:<30} - Assigned: {len(remaining_units):>4} remaining units")
+            print(f"     ✅ Smart assignment completed: {assigned_count}/{len(unassigned_units)} units")
+            
+            # Assign any remaining units to largest deficit categories
+            remaining_unassigned = [uid for uid in unassigned_units if uid not in unit_assignments]
+            if remaining_unassigned and category_needs:
+                fallback_category = category_needs[0][2]  # Largest deficit
+                fallback_count = 0
+                
+                for unit_id in remaining_unassigned:
+                    unit_assignments[unit_id] = fallback_category
+                    unit = unit_lookup[unit_id]
+                    region_areas[fallback_category] += unit['area_km2']
+                    fallback_count += 1
+                
+                print(f"     📌 Fallback assignment: {fallback_count} units to {fallback_category}")
+        else:
+            print(f"     ⚠️  No categories with deficits found")
     
     end_time = time.time()
     print(f"\n⏱️  CONTROLLED REGION GROWING COMPLETED:")
@@ -456,6 +575,7 @@ def controlled_contiguous_region_growing(units_gdf, categories, adjacencies, see
     print(f"{'Category':<35} {'Current':<12} {'Target':<12} {'Diff %':<10} {'Status':<10}")
     print("-" * 85)
     
+    categories_within_tolerance = 0
     for category in categories:
         category_name = category['name']
         current = region_areas[category_name]
@@ -465,40 +585,105 @@ def controlled_contiguous_region_growing(units_gdf, categories, adjacencies, see
         min_target = target * (1 - AREA_TOLERANCE_PCT)
         max_target = target * (1 + AREA_TOLERANCE_PCT)
         status = "✅ PASS" if min_target <= current <= max_target else "❌ FAIL"
+        if status == "✅ PASS":
+            categories_within_tolerance += 1
         
         print(f"{category_name:<35} {current:<12.2f} {target:<12.2f} {diff_pct:<10.2f} {status:<10}")
+    
+    print(f"\n📊 AREA SUMMARY: {categories_within_tolerance}/{len(categories)} categories within ±{AREA_TOLERANCE_PCT*100:.1f}% tolerance")
     
     return unit_assignments, region_areas
 
 def calculate_controlled_candidate_score(candidate_unit, category_name, current_area, target_area, adjacencies, unit_assignments):
-    """Calculate score for controlled growth"""
+    """Calculate score for controlled growth with enhanced contiguity and area accuracy"""
     unit_area = candidate_unit['area_km2']
     new_area = current_area + unit_area
     
-    # Area fit score - strongly prefer not overshooting
+    # Area fit score - strongly prioritize getting close to target without overshooting
     area_ratio = new_area / target_area if target_area > 0 else 1
-    if area_ratio <= 1.0:
-        area_score = 2.0 - abs(area_ratio - 0.8)  # Prefer getting to 80% of target
-    elif area_ratio <= 1.03:  # Within tolerance
-        area_score = 1.0
-    else:  # Would overshoot
-        area_score = 0.01  # Very low score
+    if area_ratio <= 0.95:  # Still significantly under target
+        # Encourage steady growth toward target
+        progress_to_target = current_area / target_area if target_area > 0 else 0
+        area_score = 4.0 + (1.0 - abs(area_ratio - 0.85))  # Prefer getting to 85% of target
+    elif area_ratio <= 0.97:  # Getting close but still under
+        area_score = 5.0 + (1.0 - abs(area_ratio - 0.96))  # High score for getting close
+    elif area_ratio <= 1.0:  # Very close to perfect target
+        area_score = 8.0 - abs(area_ratio - 1.0) * 20  # Peak score at exactly target
+    elif area_ratio <= 1.01:  # Slightly over but acceptable
+        area_score = 6.0 - abs(area_ratio - 1.0) * 15  # Good score but penalized
+    elif area_ratio <= 1.03:  # Within tolerance zone but over
+        area_score = 3.0 - abs(area_ratio - 1.0) * 10  # Lower score to discourage
+    else:  # Would overshoot tolerance significantly
+        area_score = 0.001  # Very low score to avoid overshooting
     
-    # Connectivity score - essential for contiguity
+    # Connectivity score - CRITICAL for contiguity
     neighbors_in_region = 0
+    neighbors_in_other_regions = 0
     total_neighbors = len(adjacencies.get(candidate_unit['unit_id'], []))
     
     for neighbor_id in adjacencies.get(candidate_unit['unit_id'], []):
-        if unit_assignments.get(neighbor_id) == category_name:
+        neighbor_assignment = unit_assignments.get(neighbor_id)
+        if neighbor_assignment == category_name:
             neighbors_in_region += 1
+        elif neighbor_assignment is not None:
+            neighbors_in_other_regions += 1
     
     # Must have at least one neighbor in the region for contiguity
     if neighbors_in_region == 0:
-        return 0  # Cannot maintain contiguity
+        return 0.001  # Almost zero - cannot maintain contiguity
     
-    connectivity_score = (neighbors_in_region + 1) / (total_neighbors + 1)
+    # Prefer units with multiple connections to the region (stronger contiguity)
+    connectivity_score = neighbors_in_region
+    if neighbors_in_region >= 2:
+        connectivity_score *= 1.5  # Bonus for strong connectivity
+    if neighbors_in_region >= 3:
+        connectivity_score *= 1.3  # Extra bonus for very strong connectivity
     
-    return area_score * connectivity_score * 10  # Boost good candidates
+    # Penalty for creating complex boundaries (many neighbors in other regions)
+    if neighbors_in_other_regions > 0:
+        boundary_penalty = 1.0 / (1.0 + neighbors_in_other_regions * 0.3)
+    else:
+        boundary_penalty = 1.2  # Bonus for internal growth
+    
+    # Compactness bonus - prefer units that don't create long tendrils
+    compactness_score = 1.0
+    if total_neighbors > 0:
+        # Higher ratio of same-region neighbors = more compact
+        same_region_ratio = neighbors_in_region / total_neighbors
+        compactness_score = 1.0 + same_region_ratio * 0.5
+    
+    # Size appropriateness - prefer reasonable unit sizes
+    size_score = 1.0
+    if target_area > 1000:  # Large categories
+        if unit_area < 0.1:  # Very small units
+            size_score = 0.7
+        elif unit_area > 20:  # Very large units
+            size_score = 0.8
+    else:  # Small categories
+        if unit_area > 10:  # Large units for small categories
+            size_score = 0.6
+    
+    # Category-specific bonuses
+    category_bonus = 1.0
+    if target_area > 5000:  # Very large categories (Agricultural, Forest)
+        # Prioritize area accuracy more for large categories
+        category_bonus = 1.0 + (area_score / 10.0)
+    elif target_area < 50:  # Very small categories
+        # Prioritize any growth for tiny categories
+        if area_ratio < 0.5:
+            category_bonus = 2.0  # Strong bonus to help small categories grow
+    
+    # Final score calculation
+    final_score = (area_score * connectivity_score * boundary_penalty * 
+                  compactness_score * size_score * category_bonus)
+    
+    # Debug logging for problematic cases (occasionally)
+    if np.random.random() < 0.001:  # 0.1% chance to log
+        print(f"    🔍 Unit {candidate_unit['unit_id']}: area={area_score:.2f}, "
+              f"connect={connectivity_score:.2f}, boundary={boundary_penalty:.2f}, "
+              f"final={final_score:.2f}")
+    
+    return final_score
 
 def create_contiguous_regions_from_assignments(units_gdf, unit_assignments, categories):
     """Create region geometries from unit assignments with detailed progress"""
@@ -725,7 +910,7 @@ def check_contiguity_and_results(regions_gdf, categories, original_total_area):
             print(f"   📍 CONTIGUITY: {fragmented} categories are fragmented (need single polygons)")
         if area_passed < total_categories:
             inaccurate = total_categories - area_passed
-            print(f"   📏 AREA ACCURACY: {inaccurate} categories outside ±{AREA_TOLERANCE_PCT*100:.1f}% tolerance")
+            print(f"   📍 AREA ACCURACY: {inaccurate} categories outside ±{AREA_TOLERANCE_PCT*100:.1f}% tolerance")
         print(f"   🎯 REQUIRED: ALL {total_categories} categories must be contiguous AND accurate")
         print("="*90)
         return False
