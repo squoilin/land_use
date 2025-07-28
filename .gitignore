@@ -1,1 +1,97 @@
-corine
+# Belgium Land Use Division Project - .gitignore
+
+# Geodata folder (large geospatial files > 10MB)
+geodata/
+
+# Legacy folder (old scripts and outputs)
+legacy/
+
+# Generated output files
+*.png
+*.jpg
+*.jpeg
+belgium_*_regions*.geojson
+belgium_*_regions*.gpkg
+*_output*.geojson
+*_results*.geojson
+
+# Summary and temporary files
+*_summary.md
+*_SUMMARY.md
+new_strategy.md
+prompt
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Environment variables
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Large intermediate data files (keep only essential inputs)
+assigned_units_*.geojson
+initial_regions*.geojson
+*_custom_regions*.geojson
+
+# Conda environment files (optional)
+*.yml
+*.yaml
+
+# Essential small files in main directory - these should NOT be ignored:
+# !belgium.geojson
+# !belgium_boundary.geojson
+# !germany.jpeg
+# !strategy.md
+# !contiguous_land_divider.py
+# !README.md
