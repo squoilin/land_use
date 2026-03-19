@@ -1,10 +1,10 @@
 name,area_km2,color
-Agricultural land,12453,#4CAF50
+Agricultural land,12953,#4CAF50
 Forest,6138,#1B5E20
 Other natural/rest,4222,#8D6E63
 Roads & rail,3553,#616161
 Buildings,2762,#E8B54D
-Energy crops,1050,#7B1FA2
+Energy crops,550,#7B1FA2
 Paths/tracks,250,#BCAAA4
 Water bodies,143,#1565C0
 Golf courses,45,#00897B
