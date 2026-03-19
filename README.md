@@ -7,7 +7,6 @@ areas, producing a publication-ready map inspired by the German
 ## Result
 
 - **13/13 categories** contiguous (single connected region each)
-- **13/13 categories** within ±3 % area tolerance
 - **Runtime:** ~3 seconds
 - **Output:** `belgium_land_use_grid.png`
 
@@ -182,315 +181,77 @@ Put differently: replacing just 15 km² of energy crops with solar panels (and
 switching the corresponding cars to electric) would match the entire transport
 output of all 550 km² of energy crops.
 
-## Data Categories and Collection Process
+## Data Collection and Methodology
 
-For each category, the data for Belgium is estimated according to the following sources and methodology:
+We estimated the land area for each category using a combination of official statistics, industry reports, and geospatial data. Here is a breakdown of how we sourced and calculated the figures for each land-use type.
 
----
+### 1. Agriculture and Energy Crops
 
-### 1. Agricultural Land & Related
+**Energy Crops (~550 km²)**
+This category covers land dedicated to growing crops for energy production, such as biofuels and biogas. It includes the energy-allocated share of multi-purpose biorefinery feedstock grown domestically, but strictly excludes residues and by-products (like the sugar beet thick juice used by BioWanze).
 
-#### 1.1. Energy Crops
-- **Description:** Belgian land used for cultivating crops dedicated to energy production (biofuels, biogas). Includes the *energy-allocated* share of multi-purpose biorefinery feedstock grown domestically. Strictly excludes residues and by-products (e.g., sugar beet thick juice used by BioWanze).
-- **Search Terms:** "Belgium energy crops land use", "Belgium biogas feedstock maize", "BioWanze feedstock", "Alco Bio Fuel feedstock"
-- **Findings:**
+Since there is no single published dataset for all energy crops in Belgium, we built this estimate from the ground up:
+*   **Biogas crops (~100 km²):** Belgium has around 200 biogas installations. Based on the Wallonia biogas sector report (SPW, 2023), 14.4 % of biogas inputs are energy crops (mostly maize silage). Scaling this to the whole country gives about 100 km² (ranging from 70 to 150 km²). Note that while Belgium grows ~1,770 km² of silage maize, the vast majority feeds cattle, not digesters.
+*   **Biodiesel rapeseed (~60 km²):** Belgium grows about 100 km² of rapeseed. Since rapeseed yields both oil (for biodiesel) and meal (for animal feed), we allocate 60 % of the area to energy based on the oil's energy content.
+*   **Bioethanol feedstock (~390 km²):** Belgium has two main bioethanol refineries: BioWanze and Alco Bio Fuel. BioWanze uses ~800 kt of wheat annually. Assuming 60 % is sourced domestically and applying a 50 % energy allocation (accounting for co-products like ProtiGrain), this requires ~267 km² of Belgian land. Alco Bio Fuel uses ~665 kt of maize. Assuming 30 % is domestic and applying a 60 % energy allocation, this takes up ~120 km². Together, they account for roughly 390 km².
 
-    No single published series exists for Belgium that captures all energy crop
-    land use. The estimate below is built bottom-up from three components.
+*Sources:* Service public de Wallonie (Panorama biométhanisation 2023), IEA Bioenergy Country Report 2024, BioWanze and Alco Bio Fuel corporate data, Statbel agricultural surveys, and ILVO variety lists.
 
-    **A. Maize and other crops for biogas (~100 km²)**
+**Food and Feed Crops**
+For general agricultural land, we relied on Corine Land Cover (CLC) data. Crops grown directly for human consumption include non-irrigated arable land (1,221,161.74 km² in the raw CLC2012 data), permanently irrigated land (104,963.28 km²), and rice fields (7,730.59 km²). Animal feed crops, which are part of the 44 % total agricultural land reported by Statbel, include pastures (425,428.27 km² according to CLC2012).
 
-    Belgium has ~200 biogas installations (Flanders: ~40 co-digestion + ~90
-    other types; Wallonia: 63 total incl. 40 agricultural; IEA Bioenergy 2024,
-    Panorama Wallonie 2023). Only agricultural co-digestion plants use
-    significant amounts of energy crops (mainly maize silage). The Wallonia
-    biogas sector report (SPW, 2023) provides the most concrete data: total
-    biogas inputs 918 kt, of which **14.4 % are energy crops** (~132 kt).
-    At a maize silage yield of ~50 t/ha, this implies ~2,640 ha ≈ 26 km² in
-    Wallonia. Scaling to Belgium using Flanders' larger but similarly
-    structured biogas sector (IEA Bioenergy 2024 mentions 40 co-digestion
-    installations in Flanders) gives a total of approximately **100 km²**
-    (range: 70–150 km²).
-
-    *Important:* Belgium's total silage maize area is ~177,000 ha / 1,770 km²
-    (Statbel 2022 / ILVO), but the vast majority feeds dairy and beef cattle.
-    Only a small fraction (~6 %) goes to biogas digesters. The previous
-    estimate of 600 km² conflated the biogas share with a much larger portion
-    of the total silage maize area.
-
-    **B. Rapeseed for biodiesel (~60 km²)**
-
-    Belgium's total rapeseed area is ~10,000 ha ≈ 100 km² (Statbel 2022;
-    production ~37 kt at ~3.7 t/ha; >90 % in Wallonia). Rapeseed produces
-    both oil (→ biodiesel or food) and meal (→ animal feed). An energy
-    allocation to the oil fraction (40 % of seed mass at 37 MJ/kg vs. 60 %
-    meal at 17 MJ/kg) gives **~60 %** to the energy product, i.e., ~60 km².
-
-    **C. Bioethanol feedstock (~390 km²)**
-
-    Belgium has two major bioethanol biorefineries:
-
-    | | BioWanze (Wanze) | Alco Bio Fuel (Ghent) |
-    |---|---|---|
-    | Ethanol capacity | 300 ML/yr | 285 ML/yr |
-    | Feedstock | ~800 kt wheat/yr + beet thick juice | ~665 kt maize/yr |
-    | Key co-products | 420 kt ProtiGrain, 60 kt Gluten | 190 kt DDGS, 5 kt corn oil |
-    | Sources | biowanze.be; Revue IAA | alcobiofuel.com; IBJ |
-
-    **Hypotheses:**
-
-    1. *Beet residues excluded:* BioWanze's beet thick juice comes exclusively
-       from Belgian sugar beets processed at the adjacent Raffinerie
-       Tirlemontoise (Südzucker). The land grows beets for sugar; the thick
-       juice is a by-product. No land is attributed to this stream.
-    2. *BioWanze domestic sourcing — 60 %:* BioWanze states feed wheat comes
-       "mainly from Belgian crops, supplemented by French and German"
-       (biowanze.be). Belgium's winter wheat area is ~186,000 ha producing
-       ~1.7 Mt (Statbel 2022). 60 % of BioWanze's 800 kt = 480 kt, or ~28 %
-       of Belgian wheat production — plausible for a major local buyer.
-       Gross Belgian area: 480 kt / 9 t/ha = 53,300 ha = 533 km².
-    3. *Alco Bio Fuel domestic sourcing — 30 %:* Alco Bio Fuel sources
-       "European non-GMO maize" via Vanden Avenne Commodities. Belgium's
-       total grain maize area is only 64,300 ha producing ~640 kt (Statbel
-       2022 / ILVO). Since ABF alone needs ~665 kt, most must be imported.
-       We estimate 30 % Belgian (200 kt), i.e., ~31 % of Belgian grain maize.
-       Gross Belgian area: 200 kt / 10.5 t/ha = 19,000 ha = 190 km².
-    4. *BioWanze energy allocation — 50 %:* By energy content, ethanol
-       represents ~50 % of output (ethanol 237 kt × 26.8 MJ/kg = 6,350 GJ
-       vs. ProtiGrain + Gluten + Bran ≈ 6,350 GJ). Dedicated energy area:
-       533 × 50 % = **267 km²**.
-    5. *Alco Bio Fuel energy allocation — 60 %:* Corn DDGS has lower energy
-       density than wheat co-products, so ethanol's energy share is higher
-       (~60 %). Dedicated energy area: 190 × 60 % = **~120 km²**.
-
-    Total bioethanol dedicated area: 267 + 120 = **~390 km²**.
-
-    **Grand total: ~100 + 60 + 390 ≈ 550 km²** (range: 400–700 km²).
-
-- **Data (km² or % of total area):** ~550 km² (2022–2024 best estimate; range 400–700 km²)
-- **Source(s):**
-    - Service public de Wallonie: [Panorama biométhanisation Wallonie 2023](https://energie.wallonie.be) (biogas inputs breakdown)
-    - IEA Bioenergy: [Belgium Country Report 2024](https://www.ieabioenergy.com/wp-content/uploads/2024/12/CountryReport2024_Belgium_final.pdf) (biogas sector structure, plant descriptions)
-    - BioWanze: [Raw materials](https://www.biowanze.be/en/products/raw-materials), [About us](https://www.biowanze.be/en/company/about-us) (capacity, feedstock origin)
-    - Alco Bio Fuel: [Behind the scenes](https://www.alcobiofuel.com/en/behind-the-scenes-at-our-biorefinery-in-ghent/), [Products](https://www.alcobiofuel.com/en/products/) (capacity, co-products)
-    - IBJ: [Alco Bio Fuel celebrates 10 years](https://www.ibj-online.com/alco-bio-fuel-ghent-celebrates-10-years-of-success/190) (feedstock tonnage)
-    - Revue IAA: [BioWanze article](https://www.revue-iaa.fr/magazines/biowanze-une-usine-unique-de-production-de-bioethanol/) (800 kt wheat/yr)
-    - Statbel: [Agricultural survey 2023](https://statbel.fgov.be/en/news/final-results-agricultural-survey-2023-table-updates) (crop areas, wheat/maize/rapeseed)
-    - ILVO: [Variety lists maize 2023](https://ilvo.vlaanderen.be/en/news/ilvo-variety-list-fodder-beet-and-maize-2023) (silage maize 177,306 ha, grain maize 64,309 ha)
-- **Notes:**
-    - The largest source of uncertainty is domestic sourcing for the two biorefineries. A ±10 pp change in BioWanze's Belgian share shifts the total by ~±45 km².
-    - Corine Land Cover does not distinguish energy crops from other arable crops.
-    - The area can fluctuate year to year depending on biofuel mandates, commodity prices, and biogas support schemes.
-
-#### 1.2. Crops for Human Consumption
-- **Description:** Land used for growing crops directly for human food.
-- **Search Terms:** "Belgium arable land human consumption", "crop production statistics Belgium", "land use food crops Belgium"
-- **Findings:**
-- **Data (km² or % of total area):** Non-irrigated arable land (211): 1,221,161.74 km²; Permanently irrigated land (212): 104,963.28 km²; Rice fields (213): 7,730.59 km². (CLC2012)
-- **Source(s):** CLC2012 raster, CLC legend.
-- **Notes:** These are the main arable land classes in CLC.
-
-#### 1.3. Animal Feed Crops
-- **Description:** Land used for growing crops for animal fodder (e.g., maize for silage, fodder beets, grassland for grazing/hay). This includes "Permanent Pasture" and parts of "Arable Land".
-- **Search Terms:** "Belgium animal feed crops land use", "fodder crops area Belgium", "permanent pasture land use Belgium"
-- **Findings:** Part of the 44% agricultural land reported by Statbel.
-- **Data (km² or % of total area):** Pastures (231): 425,428.27 km². (CLC2012)
-- **Source(s):** CLC2012 raster, CLC legend.
-- **Notes:**
-
-#### 1.4. Other Agricultural / Christmas Trees
-- **Description:** Miscellaneous agricultural uses, with a specific mention of Christmas trees in the German example.
-- **Search Terms:** "Christmas tree cultivation area Belgium statistics", "other agricultural land use Belgium"
-- **Findings:**
-- **Data (km² or % of total area):** Vineyards (221): 41,654.40 km²; Fruit trees and berry plantations (222): 50,734.14 km²; Olive groves (223): 4,160.56 km²; Annual crops associated with permanent crops (241): 32,739.69 km²; Complex cultivation patterns (242): 252,946.18 km²; Land principally occupied by agriculture, with significant areas of natural vegetation (243): 277,020.04 km²; Agro-forestry areas (244): 32,739.69 km². (CLC2012)
-- **Source(s):** CLC2012 raster, CLC legend.
-- **Notes:**
-
----
+**Other Agricultural Uses**
+This includes miscellaneous agricultural land such as vineyards (41,654.40 km²), fruit trees and berry plantations (50,734.14 km²), olive groves (4,160.56 km²), and complex cultivation patterns (252,946.18 km²). We also include agro-forestry areas and land principally occupied by agriculture with significant natural vegetation. All these figures are drawn from the CLC2012 raster data.
 
 ### 2. Built-up and Artificial Areas
 
-#### 2.1. Settlement, Industry, Leisure
-- **Description:** Combined area for residential, industrial, commercial, and recreational built-up areas.
-- **Search Terms:** "Belgium settlement area statistics", "industrial land use Belgium", "recreational land use Belgium", "artificial surfaces Belgium"
-- **Findings:** Statbel provides data on "built-up land and related sites." Statbel (2024) reports "residential lands for 9%". Corine Land Cover data (e.g., CLC2018) categorizes various artificial surfaces (urban fabric, industrial/commercial units, transport units, mine/dump/construction sites, artificial non-agricultural vegetated areas).
-- **Data (km² or % of total area):** Continuous urban fabric (111): 6,726.63 km²; Discontinuous urban fabric (112): 165,366.65 km²; Industrial or commercial units (121): 29,039.31 km²; Green urban areas (141): 3,565.12 km²; Sport and leisure facilities (142): 12,088.11 km². (CLC2012)
-- **Source(s):** CLC2012 raster, CLC legend.
-- **Notes:** This is a broad category. "Wohnen" (Residential) is a sub-component.
+**Settlement, Industry, and Leisure**
+This broad category encompasses residential, industrial, commercial, and recreational built-up areas. According to Statbel (2024), residential lands account for 9 % of Belgium's area. In the Corine Land Cover data, this is broken down into continuous urban fabric (6,726.63 km²), discontinuous urban fabric (165,366.65 km²), industrial or commercial units (29,039.31 km²), green urban areas (3,565.12 km²), and sport/leisure facilities (12,088.11 km²).
 
-#### 2.2. Residential Housing
-- **Description:** Land specifically used for housing.
-- **Search Terms:** "Belgium residential land use statistics", "housing area Belgium"
-- **Findings:** Statbel (2024) states "residential lands for 9%".
-- **Data (km² or % of total area):** Continuous urban fabric (111): 6,726.63 km²; Discontinuous urban fabric (112): 165,366.65 km². (CLC2012)
-- **Source(s):** CLC2012 raster, CLC legend.
-- **Notes:** This will be a part of the broader "Siedlung, Industrie, Freizeit".
+**Mining and Quarries**
+Land used for mineral extraction and dump sites is also tracked via CLC data, which identifies mineral extraction sites (8,051.67 km²), dump sites (1,194.15 km²), and construction sites (2,407.68 km²).
 
-#### 2.3. Opencast Mining, Quarries
-- **Description:** Land used for mineral extraction (opencast mines, quarries).
-- **Search Terms:** "Belgium mining land use", "quarry area Belgium statistics", "extraction sites land use Belgium"
-- **Findings:** Corine Land Cover includes a category for "Mineral extraction sites" (CLC code 131) and "Dump sites" (CLC code 132).
-- **Data (km² or % of total area):** Mineral extraction sites (131): 8,051.67 km²; Dump sites (132): 1,194.15 km²; Construction sites (133): 2,407.68 km². (CLC2012)
-- **Source(s):** CLC2012 raster, CLC legend.
-- **Notes:**
+### 3. Energy Infrastructure and Transport
 
----
+**Ground-mounted Solar PV (~15 km²)**
+While most of Belgium's solar capacity is on rooftops, ground-mounted installations take up a small amount of land. We estimated this using three approaches:
+1.  **Capacity-based:** The IEA PVPS estimates about 10 % of Belgium's ~11.7 GW solar capacity is ground-mounted. Using an industry standard of 1.0 to 1.5 hectares per MW, this yields 12 to 18 km².
+2.  **Bottom-up:** Summing the area of the largest known solar parks (like the 99.5 MW Kristal Solar Park on 0.93 km²) confirms the total is small, aligning with the 10–20 km² range.
+3.  **OpenStreetMap (OSM):** An Overpass API query returns ~3.6 km² of mapped polygons. While incomplete, this serves as a solid lower bound.
 
-### 3. Energy & Infrastructure
+*Sources:* Elia, Statbel, IEA PVPS Belgium Country Report 2024, Fraunhofer ISE, and OSM.
 
-#### 3.1. Ground-mounted Photovoltaics
-- **Description:** Land area occupied by ground-mounted solar PV installations.
-- **Search Terms:** "Belgium ground-mounted solar PV land area", "solar farm land use Belgium statistics", "Kristal Solar Park area"
-- **Findings:**
-    - Official Belgian and European sources (CREG, Elia, Statbel, Eurostat) report installed solar PV capacity, but not land area. Most Belgian PV is rooftop; ground-mounted is a small fraction.
-    - **Angle 1: Capacity-based estimation.** IEA PVPS Belgium Country Report (2022) estimates about 10% of total PV capacity is ground-mounted. With ~11.7 GW total PV by the end of 2024, this gives ~1.17 GW ground-mounted. Scientific literature and industry standards suggest a land use factor of 1.0 to 1.5 ha/MW (0.010–0.015 km²/MW) for ground-mounted PV. This yields **12 to 18 km²**.
-    - **Angle 2: Bottom-up verification of largest parks.** Belgium's largest solar park (Kristal Solar Park in Lommel) has a capacity of 99.5 MW on 93 hectares (0.93 km²), which corresponds to a dense 0.93 ha/MW. The largest in Wallonia (Braine-l'Alleud) is 12 MW on 19 hectares (0.19 km²), or 1.58 ha/MW. The sum of the few largest parks is around 1.5–2 km², confirming that the total national area is small and well within the 10–20 km² range.
-    - **Angle 3: OpenStreetMap data.** An Overpass API query for ground-mounted solar generators (`power=generator` + `generator:source=solar` + `generator:location=ground` or `power=plant`) returns ~3.6 km² of mapped polygons. While OSM is known to be incomplete for this feature, it serves as a solid lower bound.
-- **Data (km² or % of total area):** Best estimate: ~15 km² (range: 12–18 km²) for ground-mounted PV in Belgium (2024).
-- **Source(s):**
-    - Elia: [Renewable Energy Statistics](https://www.elia.be/en/grid-data/power-generation/renewable-energy)
-    - Statbel: [Energy Statistics](https://statbel.fgov.be/en/themes/energy)
-    - IEA PVPS Belgium Country Report 2024: [IEA PVPS Belgium](https://iea-pvps.org/country-reports/)
-    - Fraunhofer ISE: [Land Use of Photovoltaics](https://www.ise.fraunhofer.de/en/publications/studies/land-use-of-photovoltaics.html)
-    - OSM Overpass API (2024)
-    - Industry news and press releases (Kristal Solar Park, Braine-l'Alleud)
-- **Notes:**
-    - The vast majority of Belgian solar PV is rooftop, not ground-mounted.
-    - The estimate is triangulated from capacity data, land use factors, and verification of the country's largest installations.
+**Wind Turbines (~14 km²)**
+This represents the direct footprint of wind turbines (bases, roads, and substations). Belgium has about 3.5 GW of onshore wind capacity. Using a standard land-take estimate of 0.003–0.005 km² per MW, we arrive at roughly 14 km² (ranging from 10 to 18 km²). Note that while the total "wind farm area" is much larger, most of that land remains available for agriculture.
 
-#### 3.2. Area for Wind Turbines
-- **Description:** Land area directly occupied by wind turbines and their immediate infrastructure.
-- **Search Terms:** "Belgium wind turbine land use", "wind farm footprint Belgium statistics"
-- **Findings:**
-    - Elia and Statbel provide statistics on installed wind capacity (onshore and offshore), but not directly on land area. As of 2023, Belgium had about 3.5 GW of onshore wind capacity.
-    - Scientific literature and industry reports estimate the direct land take for wind turbines as 0.3–0.5 ha/MW (0.003–0.005 km²/MW). For 3,500 MW, this gives ~14 km² (range: 10–18 km²) for the direct footprint (bases, roads, substations).
-    - The "wind farm area" (the polygon enclosing all turbines) can be 10–20 times larger, but most of this land remains available for agriculture.
-    - OSM lists hundreds of wind turbines in Belgium, but mapped wind farm polygons are rare. Summing mapped turbine bases gives a similar order of magnitude for direct land take.
-- **Data (km² or % of total area):** Best estimate: ~14 km² (range: 10–18 km²) for direct wind turbine footprint in Belgium (2023).
-- **Source(s):**
-    - Elia: [Renewable Energy Statistics](https://www.elia.be/en/grid-data/power-generation/renewable-energy)
-    - Statbel: [Energy Statistics](https://statbel.fgov.be/en/themes/energy)
-    - WindEurope: [Wind energy in Europe](https://windeurope.org/intelligence-platform/product/wind-energy-in-europe-in-2023-trends-and-statistics/)
-    - IEA Wind: [IEA Wind TCP Annual Report](https://community.ieawind.org/home)
-    - Fraunhofer IEE: [Land Use by Wind Power](https://www.energiecharts.info/charts/land_use/chart.htm?l=en&c=BE)
-    - OSM Overpass API (2024)
-    - Industry news and press releases
-- **Notes:**
-    - The actual land "lost" to wind turbines is very small; most land within wind farms remains in use (e.g., crops, pasture).
-    - The estimate is based on the best available capacity data and standard land use factors.
-    - OSM and press reports confirm the order of magnitude but are incomplete.
+*Sources:* Elia, Statbel, WindEurope, IEA Wind, Fraunhofer IEE, and OSM.
 
-#### 3.3. Roads and Road Infrastructure
-- **Description:** Land covered by roads, motorways, and associated infrastructure (e.g., parking areas alongside roads).
-- **Search Terms:** "Belgium road network land area", "land use transport infrastructure Belgium"
-- **Findings:**
-- **Data (km² or % of total area):** Road and rail networks and associated land (122): 3,552.77 km². (CLC2012)
-- **Source(s):** CLC2012 raster, CLC legend.
-- **Notes:**
+**Roads and Railways**
+Land covered by the road and rail networks, along with associated infrastructure like parking areas and stations, totals roughly 3,552.77 km² according to CLC2012 data.
 
-#### 3.4. Bahn (Railways and Rail Infrastructure)
-- **Description:** Land covered by railway lines and associated infrastructure (e.g., stations, shunting yards).
-- **Search Terms:** "Belgium railway network land area", "land use rail transport Belgium"
-- **Findings:**
-- **Data (km² or % of total area):** Included in Road and rail networks and associated land (122): 3,552.77 km². (CLC2012)
-- **Source(s):** CLC2012 raster, CLC legend.
-- **Notes:**
+**Paths and Tracks (~250 km²)**
+Smaller rural tracks and paths are too small for Corine Land Cover and aren't tracked by Statbel. We estimated their area using OpenStreetMap data, which maps ~60,000 km of tracks, ~30,000 km of paths, ~25,000 km of footways, and ~10,000 km of cycleways. Multiplying these lengths by typical widths (2.5 meters for tracks, 1.5 meters for others) gives an estimated total area of ~250 km².
 
-#### 3.5. Paths, Tracks
-- **Description:** Smaller paths, rural tracks, possibly forest trails not classified as roads.
-- **Search Terms:** "Belgium paths land use", "rural tracks area Belgium"
-- **Findings:**
-    - Corine Land Cover does not have a specific class for paths/tracks; such features are too small for CLC's minimum mapping unit.
-    - Statbel does not provide a separate category for paths/tracks in its land use statistics.
-    - OSM contains detailed mapping of "highway=track", "highway=path", "highway=footway", "highway=cycleway", etc. OSM data (2024) for Belgium: ~60,000 km of tracks, ~30,000 km of paths, ~25,000 km of footways, ~10,000 km of cycleways.
-    - Area estimated by multiplying length by typical width (tracks: 2.5 m, others: 1.5 m). Total estimated area: ~250 km².
-    - Scientific literature confirms this is plausible for Western Europe.
-- **Data (km² or % of total area):** Best estimate: ~250 km² (2024, based on OSM and typical widths)
-- **Source(s):**
-    - OSM Overpass API (2024): [OpenStreetMap Belgium](https://www.openstreetmap.org/relation/52411)
-    - Statbel: [Land use](https://statbel.fgov.be/en/themes/environment/land-cover-and-use/land-use)
-    - Scientific literature on rural track density in Europe
-- **Notes:**
-    - This estimate is based on OSM data and typical path/track widths.
-    - Actual area may be slightly higher or lower depending on mapping completeness and real-world variation.
-    - Most paths/tracks are not mapped in CLC or national statistics.
+### 4. Natural Areas and Water Bodies
 
----
+**Forests**
+Statbel reports that forests cover 20 % of Belgium. In the CLC data, this is categorized into broad-leaved forest (593,230.54 km²), coniferous forest (825,420.55 km²), and mixed forest (301,175.41 km²).
 
-### 4. Natural and Semi-Natural Areas
+**Water Bodies**
+Inland waters, including rivers, lakes, and canals, are captured by CLC data, which maps water courses (13,577.61 km²) and water bodies (129,094.04 km²).
 
-#### 4.1. Forest
-- **Description:** Land covered by forests.
-- **Search Terms:** "Belgium forest area statistics", "land use forestry Belgium"
-- **Findings:** Statbel (2024) reports "Forests account for 20%".
-- **Data (km² or % of total area):** Broad-leaved forest (311): 593,230.54 km²; Coniferous forest (312): 825,420.55 km²; Mixed forest (313): 301,175.41 km². (CLC2012)
-- **Source(s):** CLC2012 raster, CLC legend.
-- **Notes:** Definitions of forest can vary slightly. Corine Land Cover has categories like Broad-leaved forest (311), Coniferous forest (312), Mixed forest (313).
+### 5. Sports and Leisure
 
-#### 4.2. Wasser (Water Bodies)
-- **Description:** Land covered by inland waters (rivers, lakes, canals).
-- **Search Terms:** "Belgium inland water area statistics", "land use rivers lakes Belgium"
-- **Findings:** Corine Land Cover includes categories for "Water courses" (CLC code 511) and "Water bodies" (CLC code 512). Statbel data on "Land use according to the land register" might also contain this under "waters included in the land register".
-- **Data (km² or % of total area):** Water courses (511): 13,577.61 km²; Water bodies (512): 129,094.04 km². (CLC2012)
-- **Source(s):** CLC2012 raster, CLC legend.
-- **Notes:**
+**Golf Courses (~45 km²)**
+We estimated the land used by golf courses using OSM data (which maps ~35–40 km² of courses) and data from the Royal Belgian Golf Federation, which lists about 90 affiliated clubs. Assuming an average of 0.6 km² per 18-hole course, we estimate a total area of ~45 km² (ranging from 35 to 55 km²).
 
----
+**Football Pitches (~30 km²)**
+The Belgian Football Association reports over 5,000 official pitches. OSM maps between 4,000 and 4,500 of them. Using an average size of 0.006 km² per pitch (accounting for both full-size and smaller pitches), we estimate a total area of ~30 km² (ranging from 25 to 35 km²).
 
-### 5. Other Specific Uses
+### 6. Residual Land
 
-#### 5.1. Golf Courses
-- **Description:** Land area used for golf courses.
-- **Search Terms:** "Belgium golf course land area statistics", "number of golf courses Belgium area"
-- **Findings:**
-    - OSM contains detailed mapping of "leisure=golf_course" polygons for Belgium. As of 2024, OSM Overpass API returns ~90 mapped golf courses, with a summed mapped area of ~35–40 km².
-    - The Royal Belgian Golf Federation lists ~90 affiliated golf clubs in Belgium (2024). Most clubs have 18 holes; a few have 9 holes. The average 18-hole course in Europe covers ~0.6 km².
-    - Statbel does not provide a separate land use category for golf courses. Golf courses are included in "sport and leisure facilities" in CLC, which totals 12,088.11 km², but this class also includes many other sports.
-    - Scientific literature and industry reports confirm the average area per 18-hole course is ~0.6 km². Club websites and news articles confirm the size of individual courses (e.g., Royal Waterloo: 1.2 km², Ravenstein: 0.8 km², many others: 0.5–0.7 km²).
-    - Estimated total area: 90 courses × 0.6 km² = 54 km² (upper bound); OSM mapped polygons: ~35–40 km² (lower bound); literature and club data suggest a range of 35–55 km².
-- **Data (km² or % of total area):** Best estimate: ~45 km² (range: 35–55 km²) for golf courses in Belgium (2024).
-- **Source(s):**
-    - OSM Overpass API (2024): [OpenStreetMap Belgium](https://www.openstreetmap.org/relation/52411)
-    - Golf Belgium: [Royal Belgian Golf Federation](https://www.golfbelgium.be/)
-    - Statbel: [Land use](https://statbel.fgov.be/en/themes/environment/land-cover-and-use/land-use)
-    - European Golf Association: [EGA](https://www.ega-golf.ch/)
-    - Scientific literature and industry reports (Golf Business News, EGA, club websites)
-- **Notes:**
-    - OSM mapping is good for golf courses, but some small/private courses may be missing.
-    - Statbel and CLC do not provide a separate category; CLC "sport and leisure facilities" is much larger and includes many other sports.
-    - The estimate is based on the number of courses and typical area per course, cross-checked with OSM polygons and club data.
-
-#### 5.2. Football/Soccer Pitches
-- **Description:** Land area used for football pitches.
-- **Search Terms:** "Belgium football pitch land area", "sports fields land use Belgium"
-- **Findings:**
-    - OSM Overpass API (2024) query for Belgium returns approximately 4,000–4,500 mapped football pitches. Not all pitches are mapped, but OSM is the most comprehensive open dataset.
-    - The Belgian Football Association (RBFA) reports about 4,500 affiliated football clubs and over 5,000 official pitches in Belgium (2023). Some clubs have multiple pitches; not all pitches are full-size.
-    - Scientific literature and sports studies confirm a total of 5,000–6,000 football pitches (including school and municipal fields).
-    - Standard full-size pitch: 0.7 ha (0.007 km²); average (including smaller pitches): 0.6 ha (0.006 km²).
-    - Estimated total area: 5,000 pitches × 0.006 km² = 30 km² (range: 25–35 km²).
-- **Data (km² or % of total area):** Best estimate: ~30 km² (range: 25–35 km²) for football pitches in Belgium (2024).
-- **Source(s):**
-    - OSM Overpass API (2024): [OpenStreetMap Belgium](https://www.openstreetmap.org/relation/52411)
-    - RBFA: [Belgian Football Association](https://www.rbfa.be/en)
-    - Statbel: [Land use](https://statbel.fgov.be/en/themes/environment/land-cover-and-use/land-use)
-    - Scientific literature on sports infrastructure in Belgium
-- **Notes:**
-    - This estimate is based on OSM mapping, RBFA statistics, and typical pitch sizes.
-    - Not all pitches are mapped in OSM; RBFA and literature provide a more complete count.
-    - Some pitches are included in "sport and leisure facilities" in CLC, but this class also includes other sports.
-
----
-
-### 6. Residual
-
-#### 6.1. Rest (Other/Residual)
-- **Description:** Land uses not fitting into other categories, or unclassified areas.
-- **Search Terms:** "Belgium unclassified land use", "other land cover Belgium statistics"
-- **Findings:** CIA Factbook had "other: 33.5%", which is a very large portion and likely includes several of the more granular categories listed above that are not explicitly part of agriculture or forest.
-- **Data (km² or % of total area):** Transitional woodland-shrub (324): 299,122.10 km²; Natural grasslands (321): 228,075.20 km²; Moors and heathland (322): 173,632.84 km²; Sclerophyllous vegetation (323): 107,035.90 km²; Beaches, dunes, sands (331): 8,023.24 km²; Bare rocks (332): 94,523.82 km²; Sparsely vegetated areas (333): 15,977.63 km²; Burnt areas (334): 1,001.70 km²; Glaciers and perpetual snow (335): 14,004.61 km²; Inland marshes (411): 15,004.61 km²; Peat bogs (412): 115,525.91 km²; Salt marshes (421): 5,536.73 km²; Salines (422): 705.11 km²; Intertidal flats (423): 12,340.53 km²; Coastal lagoons (521): 6,340.56 km²; Estuaries (522): 3,926.15 km²; Sea and ocean (523): 1,489,765.41 km². (CLC2012)
-- **Source(s):** CLC2012 raster, CLC legend.
-- **Notes:** This will be what's left after accounting for all other categories. The initial 33.5% from CIA Factbook will need to be broken down.
+**Other / Residual**
+This category captures all land uses that don't fit into the above classifications. It includes transitional woodland-shrubs (299,122.10 km²), natural grasslands (228,075.20 km²), moors and heathland (173,632.84 km²), sclerophyllous vegetation (107,035.90 km²), beaches/dunes/sands (8,023.24 km²), bare rocks (94,523.82 km²), sparsely vegetated areas (15,977.63 km²), burnt areas (1,001.70 km²), glaciers and perpetual snow (14,004.61 km²), inland marshes (15,004.61 km²), peat bogs (115,525.91 km²), salt marshes (5,536.73 km²), salines (705.11 km²), intertidal flats (12,340.53 km²), coastal lagoons (6,340.56 km²), estuaries (3,926.15 km²), and sea/ocean (1,489,765.41 km²) according to CLC2012. This serves as the balancing residual to account for the remainder of Belgium's total surface area.
 
 ---
 
