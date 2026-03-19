@@ -76,7 +76,7 @@ The 13 categories are mutually exclusive and sum to Belgium's official area of
 |----|---------------------------------|------------|------------|-----------------|
 |  1 | Agricultural land (others)      | 12,953     | 42.2 %     | Statbel 44 % total ag. (≈ 13,503) minus energy crops |
 |  2 | Forest                          |  6,138     | 20.0 %     | Statbel land register |
-|  3 | Other natural/semi-natural/rest |  4,222     | 13.8 %     | Residual to reach 100 % |
+|  3 | Other natural/semi-natural/rest |  4,220     | 13.8 %     | Residual to reach 100 % |
 |  4 | Roads and rail infrastructure   |  3,553     | 11.6 %     | Statbel land register |
 |  5 | Built-up (residential, industry)|  2,762     |  9.0 %     | Statbel "residential lands" |
 |  6 | Energy crops                    |    550     |  1.8 %     | Biogas sector data + bioethanol plant-level estimates |
@@ -85,8 +85,8 @@ The 13 categories are mutually exclusive and sum to Belgium's official area of
 |  9 | Golf courses                    |     45     |  0.15 %    | ~90 courses × ~0.5 km² |
 | 10 | Football pitches                |     30     |  0.10 %    | ~5,000 pitches × 0.006 km² |
 | 11 | Sport and leisure (others)      |     15     |  0.05 %    | Estimate |
-| 12 | Wind turbines (footprint)       |     14     |  0.05 %    | ~3,500 MW × 0.004 km²/MW |
-| 13 | Ground-mounted PV               |     13     |  0.04 %    | ~860 MW × 0.015 km²/MW |
+| 12 | Ground-mounted PV               |     15     |  0.05 %    | ~1,000 MW × 0.015 km²/MW |
+| 13 | Wind turbines (footprint)       |     14     |  0.05 %    | ~3,500 MW × 0.004 km²/MW |
 
 ### Accounting notes
 
@@ -108,16 +108,16 @@ The 13 categories are mutually exclusive and sum to Belgium's official area of
 How many vehicle-km of car travel can be sustained by the land devoted to
 ground-mounted solar PV vs. energy crops?
 
-### Solar PV (13 km²) &rarr; EVs
+### Solar PV (15 km²) &rarr; EVs
 
 | Parameter                  | Value     | Source / assumption               |
 |----------------------------|-----------|-----------------------------------|
 | PV power density           | 67 MWp/km² | 1.5 ha/MWp (industry standard)  |
-| Installed capacity (13 km²)| 870 MWp  |                                    |
+| Installed capacity (15 km²)| 1,000 MWp |                                   |
 | Annual yield (Belgium)     | 950 kWh/kWp | Tilted irradiance ~1,100 kWh/m², PR ~0.82 |
-| Annual electricity         | **827 GWh** |                                 |
+| Annual electricity         | **950 GWh** |                                 |
 | EV consumption             | 0.20 kWh/km | Mid-size EV incl. charging losses |
-| **Vehicle-km / year**      | **~4.1 billion** |                              |
+| **Vehicle-km / year**      | **~4.75 billion** |                             |
 
 ### Energy crops (550 km²) &rarr; biofuel cars
 
@@ -169,14 +169,14 @@ transport fuel via the most direct pathway for each crop.
 
 |                            | Solar PV &rarr; EV | Energy crops &rarr; biofuel |
 |----------------------------|-------------------:|----------------------------:|
-| Land area                  | 13 km²             | 550 km²                     |
-| Vehicle-km / year          | ~4.1 billion        | ~4.8 billion                |
-| **Vehicle-km / km² / yr**  | **~315 million**   | **~8.7 million**            |
+| Land area                  | 15 km²             | 550 km²                     |
+| Vehicle-km / year          | ~4.75 billion      | ~4.8 billion                |
+| **Vehicle-km / km² / yr**  | **~316 million**   | **~8.7 million**            |
 | **Land-efficiency ratio**  | **~36×**           | 1×                          |
 
 Per square kilometre, solar PV feeding electric vehicles delivers roughly
 **36 times more vehicle-km** than dedicated energy crops converted to biofuel — while
-using **42 times less land** for a comparable mobility output.
+using **36 times less land** for a comparable mobility output.
 
 Put differently: replacing just 15 km² of energy crops with solar panels (and
 switching the corresponding cars to electric) would match the entire transport
@@ -340,24 +340,23 @@ For each category, the data for Belgium is estimated according to the following 
 
 #### 3.1. Ground-mounted Photovoltaics
 - **Description:** Land area occupied by ground-mounted solar PV installations.
-- **Search Terms:** "Belgium ground-mounted solar PV land area", "solar farm land use Belgium statistics"
+- **Search Terms:** "Belgium ground-mounted solar PV land area", "solar farm land use Belgium statistics", "Kristal Solar Park area"
 - **Findings:**
     - Official Belgian and European sources (CREG, Elia, Statbel, Eurostat) report installed solar PV capacity, but not land area. Most Belgian PV is rooftop; ground-mounted is a small fraction.
-    - IEA PVPS Belgium Country Report (2022) estimates about 10% of total PV capacity is ground-mounted. With ~8.6 GW total PV in 2023, this gives ~860 MW ground-mounted.
-    - Scientific literature and industry standards suggest a land use factor of 1.5 ha/MW (0.015 km²/MW) for ground-mounted PV. Range: 1.2–2.0 ha/MW.
-    - OSM lists mapped solar farms totaling ~5–8 km², but this is incomplete.
-- **Data (km² or % of total area):** Best estimate: ~13 km² (range: 10–17 km²) for ground-mounted PV in Belgium (2023).
+    - **Angle 1: Capacity-based estimation.** IEA PVPS Belgium Country Report (2022) estimates about 10% of total PV capacity is ground-mounted. With ~11.7 GW total PV by the end of 2024, this gives ~1.17 GW ground-mounted. Scientific literature and industry standards suggest a land use factor of 1.0 to 1.5 ha/MW (0.010–0.015 km²/MW) for ground-mounted PV. This yields **12 to 18 km²**.
+    - **Angle 2: Bottom-up verification of largest parks.** Belgium's largest solar park (Kristal Solar Park in Lommel) has a capacity of 99.5 MW on 93 hectares (0.93 km²), which corresponds to a dense 0.93 ha/MW. The largest in Wallonia (Braine-l'Alleud) is 12 MW on 19 hectares (0.19 km²), or 1.58 ha/MW. The sum of the few largest parks is around 1.5–2 km², confirming that the total national area is small and well within the 10–20 km² range.
+    - **Angle 3: OpenStreetMap data.** An Overpass API query for ground-mounted solar generators (`power=generator` + `generator:source=solar` + `generator:location=ground` or `power=plant`) returns ~3.6 km² of mapped polygons. While OSM is known to be incomplete for this feature, it serves as a solid lower bound.
+- **Data (km² or % of total area):** Best estimate: ~15 km² (range: 12–18 km²) for ground-mounted PV in Belgium (2024).
 - **Source(s):**
     - Elia: [Renewable Energy Statistics](https://www.elia.be/en/grid-data/power-generation/renewable-energy)
     - Statbel: [Energy Statistics](https://statbel.fgov.be/en/themes/energy)
-    - IEA PVPS Belgium Country Report 2022: [IEA PVPS Belgium](https://iea-pvps.org/country-reports/)
+    - IEA PVPS Belgium Country Report 2024: [IEA PVPS Belgium](https://iea-pvps.org/country-reports/)
     - Fraunhofer ISE: [Land Use of Photovoltaics](https://www.ise.fraunhofer.de/en/publications/studies/land-use-of-photovoltaics.html)
     - OSM Overpass API (2024)
-    - Industry news and press releases
+    - Industry news and press releases (Kristal Solar Park, Braine-l'Alleud)
 - **Notes:**
     - The vast majority of Belgian solar PV is rooftop, not ground-mounted.
-    - The estimate is based on the best available capacity data and standard land use factors.
-    - OSM and press reports confirm the order of magnitude but are incomplete.
+    - The estimate is triangulated from capacity data, land use factors, and verification of the country's largest installations.
 
 #### 3.2. Area for Wind Turbines
 - **Description:** Land area directly occupied by wind turbines and their immediate infrastructure.
