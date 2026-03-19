@@ -74,12 +74,12 @@ The 13 categories are mutually exclusive and sum to Belgium's official area of
 
 | #  | Category                        | Area (km²) | % of Total | Source / Method |
 |----|---------------------------------|------------|------------|-----------------|
-|  1 | Agricultural land (others)      | 12,803     | 41.7 %     | Statbel 44 % total ag. (≈ 13,503) minus energy crops |
+|  1 | Agricultural land (others)      | 12,453     | 40.6 %     | Statbel 44 % total ag. (≈ 13,503) minus energy crops |
 |  2 | Forest                          |  6,138     | 20.0 %     | Statbel land register |
 |  3 | Other natural/semi-natural/rest |  4,222     | 13.8 %     | Residual to reach 100 % |
 |  4 | Roads and rail infrastructure   |  3,553     | 11.6 %     | Statbel land register |
 |  5 | Built-up (residential, industry)|  2,762     |  9.0 %     | Statbel "residential lands" |
-|  6 | Energy crops                    |    700     |  2.3 %     | Eurostat / FAOSTAT estimate |
+|  6 | Energy crops                    |  1,050     |  3.4 %     | Eurostat + Bioethanol dedicated area estimate |
 |  7 | Paths/tracks                    |    250     |  0.8 %     | OSM lengths × typical widths |
 |  8 | Water bodies (inland)           |    143     |  0.5 %     | Statbel / CLC 511 + 512 |
 |  9 | Golf courses                    |     45     |  0.15 %    | ~90 courses × ~0.5 km² |
@@ -91,7 +91,7 @@ The 13 categories are mutually exclusive and sum to Belgium's official area of
 ### Accounting notes
 
 - **Agricultural land (others)** is the residual of Statbel's total
-  agricultural area (13,503 km², 44 %) after subtracting energy crops (700 km²).
+  agricultural area (13,503 km², 44 %) after subtracting energy crops (1,050 km²).
 - **Paths/tracks** physically overlap with agricultural and forest land; on the
   map they are carved out as a separate region, implicitly reducing the
   agricultural/forest/residual pool.
@@ -105,7 +105,7 @@ The 13 categories are mutually exclusive and sum to Belgium's official area of
 
 ## Back-of-the-Envelope: Land for Mobility
 
-How many passenger-km of car travel can be sustained by the land devoted to
+How many vehicle-km of car travel can be sustained by the land devoted to
 ground-mounted solar PV vs. energy crops?
 
 ### Solar PV (13 km²) &rarr; EVs
@@ -117,47 +117,38 @@ ground-mounted solar PV vs. energy crops?
 | Annual yield (Belgium)     | 950 kWh/kWp | Tilted irradiance ~1,100 kWh/m², PR ~0.82 |
 | Annual electricity         | **827 GWh** |                                 |
 | EV consumption             | 0.20 kWh/km | Mid-size EV incl. charging losses |
-| Vehicle-km                 | 4.1 billion |                                 |
-| Avg. occupancy             | 1.5       | Belgian average                    |
-| **Passenger-km / year**    | **~6 billion** |                              |
+| **Vehicle-km / year**      | **~4.1 billion** |                              |
 
-### Energy crops (700 km²) &rarr; biofuel cars
+### Energy crops (1,050 km²) &rarr; biofuel cars
 
-Belgium's 700 km² of energy crops are ~600 km² maize for biogas and ~100 km²
-rapeseed for biodiesel. Biogas is mostly burned in CHP plants for electricity
-and heat, not for transport. For this comparison we generously assume all
-output is converted to transport fuel via the most direct pathway for each
-crop.
+Belgium's ~1,050 km² of dedicated energy crops consist of ~600 km² maize for biogas, ~100 km² rapeseed for biodiesel, and an estimated ~350 km² equivalent of wheat/maize dedicated to bioethanol (accounting for the feed co-products from plants like BioWanze and Alco Bio Fuel, and excluding residues like beet syrup). Biogas is mostly burned in CHP plants for electricity and heat, not for transport. For this comparison we generously assume all output is converted to transport fuel via the most direct pathway for each crop.
 
-| Parameter                        | Rapeseed &rarr; biodiesel | Maize &rarr; biomethane &rarr; CNG |
-|----------------------------------|--------------------------|-------------------------------------|
-| Area                             | 100 km²                  | 600 km²                             |
-| Fuel yield                       | 1,500 L biodiesel/ha     | 5,200 Nm³ CH₄/ha                   |
-| Car consumption                  | 6 L / 100 km             | 4.5 kg / 100 km                     |
-| Vehicle-km                       | 250 million              | 5.3 billion                         |
-| Passenger-km (× 1.5)            | 375 million              | 8.0 billion                         |
-| **Combined passenger-km / year** | **~8.4 billion**         |                                     |
+| Parameter                        | Rapeseed &rarr; biodiesel | Maize &rarr; biomethane &rarr; CNG | Wheat &rarr; bioethanol |
+|----------------------------------|--------------------------|-------------------------------------|-------------------------|
+| Dedicated energy area            | 100 km²                  | 600 km²                             | 350 km²                 |
+| Fuel yield (per dedicated ha)    | 1,500 L biodiesel/ha     | 5,200 Nm³ CH₄/ha                   | 6,300 L ethanol/ha      |
+| Car consumption                  | 6 L / 100 km             | 4.5 kg / 100 km                     | 7 L / 100 km            |
+| **Vehicle-km**                   | **250 million**          | **5.0 billion**                     | **3.1 billion**         |
+| **Combined vehicle-km / year**   | **~8.4 billion**         |                                     |                         |
 
-*Rapeseed: 3.5 t/ha yield, ~40 % oil, ~95 % extraction, ~97 %
-transesterification.  Maize: 50 t FM/ha, 200 m³ biogas/t, 55 % CH₄,
-upgraded to biomethane; CH₄ density 0.72 kg/Nm³.*
+*Rapeseed: 3.5 t/ha yield, ~40 % oil, ~95 % extraction, ~97 % transesterification. Maize: 50 t FM/ha, 200 m³ biogas/t, 55 % CH₄, upgraded to biomethane; CH₄ density 0.72 kg/Nm³. Wheat: 9 t/ha yield, ~3,150 L ethanol/ha (gross), but since 50% of the land is allocated to feed co-products, the yield per *dedicated* energy hectare is 6,300 L.*
 
 ### Comparison
 
 |                            | Solar PV &rarr; EV | Energy crops &rarr; biofuel |
 |----------------------------|-------------------:|----------------------------:|
-| Land area                  | 13 km²             | 700 km²                     |
-| Passenger-km / year        | ~6 billion          | ~8.4 billion                |
-| **Passenger-km / km² / yr** | **~460 million**  | **~12 million**             |
-| **Land-efficiency ratio**  | **~40×**            | 1×                          |
+| Land area                  | 13 km²             | 1,050 km²                   |
+| Vehicle-km / year          | ~4.1 billion       | ~8.4 billion                |
+| **Vehicle-km / km² / yr**  | **~315 million**   | **~8.0 million**            |
+| **Land-efficiency ratio**  | **~39×**           | 1×                          |
 
 Per square kilometre, solar PV feeding electric vehicles delivers roughly
-**40 times more passenger-km** than energy crops converted to biofuel — while
-using **54 times less land** for a comparable mobility output.
+**39 times more vehicle-km** than dedicated energy crops converted to biofuel — while
+using **80 times less land** for a comparable mobility output.
 
-Put differently: replacing just 18 km² of energy crops with solar panels (and
+Put differently: replacing just 27 km² of energy crops with solar panels (and
 switching the corresponding cars to electric) would match the entire transport
-output of all 700 km² of energy crops.
+output of all 1,050 km² of energy crops.
 
 ## Data Categories and Collection Process
 
@@ -168,19 +159,28 @@ For each category, the data for Belgium is estimated according to the following 
 ### 1. Agricultural Land & Related
 
 #### 1.1. Energy Crops
-- **Description:** Land used for cultivating crops specifically for energy production (e.g., biofuels, biogas).
+- **Description:** Land used for cultivating crops specifically for energy production (e.g., biofuels, biogas). This includes dedicated energy crops (like maize for biogas) and the *dedicated energy portion* of multi-purpose crops (like wheat for bioethanol), but strictly excludes residues (like sugar beet syrup).
 - **Search Terms:** "Belgium energy crops land use", "land use for bioenergy Belgium statistics", "cultivation area energy plants Belgium"
 - **Findings:**
-    - Eurostat and FAOSTAT provide statistics on crops for energy production. The main energy crops in Belgium are maize for biogas and rapeseed for biodiesel. According to Eurostat (2022), the area under energy crops is approximately 700 km² (maize for silage/biogas: ~600 km², rapeseed: ~100 km², other crops: <10 km²). This is about 2.3% of total arable land. Statbel and recent scientific literature confirm this order of magnitude.
+    - Eurostat and FAOSTAT provide statistics on crops for energy production. The main dedicated energy crops in Belgium are maize for biogas and rapeseed for biodiesel. According to Eurostat (2022), the area under dedicated energy crops is approximately 700 km² (maize for silage/biogas: ~600 km², rapeseed: ~100 km², other crops: <10 km²).
+    - However, this figure typically excludes multi-purpose crops sold to biorefineries. Belgium has two major bioethanol plants: BioWanze (using wheat and sugar beet residues) and Alco Bio Fuel (using maize and wheat), with a combined capacity of ~550 million liters/year.
+    - **Hypotheses for Bioethanol Land Use:**
+        1. We exclude sugar beet residues used by BioWanze, as the primary land use is sugar.
+        2. We assume BioWanze uses ~80% wheat (240 ML/yr) and Alco Bio Fuel uses ~100% maize (250 ML/yr).
+        3. At typical yields (wheat: 9 t/ha, 350 L/t; maize: 10 t/ha, 400 L/t), this requires a gross area of ~1,385 km² of grain.
+        4. **Allocation:** Biorefineries produce both ethanol and high-protein animal feed (e.g., ProtiWanze, DDGS). We allocate 50% of the land footprint to the energy product and 50% to the feed co-product.
+        5. **Domestic Sourcing:** We assume 50% of the feedstock is grown in Belgium (the rest imported from France/Germany/Europe).
+    - Under these hypotheses, the Belgian land area *dedicated* to bioethanol (excluding residues and feed co-products) is roughly **350 km²**.
+    - Total dedicated energy crop footprint is therefore ~1,050 km² (700 km² Eurostat + 350 km² bioethanol equivalent).
     - Corine Land Cover does not distinguish energy crops from other arable crops.
-- **Data (km² or % of total area):** ~700 km² (2022, best estimate from Eurostat/FAOSTAT/Statbel)
+- **Data (km² or % of total area):** ~1,050 km² (2022-2024, best estimate combining Eurostat dedicated crops and bioethanol feedstock equivalents)
 - **Source(s):**
     - Eurostat: [Crops for energy production](https://ec.europa.eu/eurostat/databrowser/view/tag00098/default/table?lang=en)
     - FAOSTAT: [Bioenergy Crops](https://www.fao.org/faostat/en/#data/QC)
     - Statbel: [Land use](https://statbel.fgov.be/en/themes/environment/land-cover-and-use/land-use)
-    - Recent scientific literature (2020–2023)
+    - USDA FAS: [EU Biofuels Annual Report](https://fas.usda.gov/data/european-union-biofuels-annual-3) (for methodology on feed co-product allocation)
+    - BioWanze and Alco Bio Fuel corporate reports (for capacity and feedstock types)
 - **Notes:**
-    - The main energy crops are maize for biogas and rapeseed for biodiesel.
     - The area can fluctuate year to year depending on policy and market conditions.
     - CLC/Corine does not distinguish energy crops from other arable crops.
 
@@ -417,8 +417,7 @@ For each category, the data for Belgium is estimated according to the following 
 5. **Built-up undercount.** The 9 % Statbel figure may miss some industrial
    zones, ports, and airports that CLC classifies as artificial.
 
-6. **Energy crops uncertainty.** The 700 km² is pieced together from individual
-   crop areas; no single published series exists for Belgium.
+6. **Energy crops uncertainty.** The 1,050 km² is pieced together from Eurostat dedicated crop areas and capacity-based estimates for bioethanol biorefineries (which split their footprint with animal feed). No single published series exists for Belgium that captures all multi-purpose energy crops while correctly excluding residues.
 
 7. **Temporal mismatch.** Land register 2023–2024, CLC 2018, OSM 2024, energy
    capacity 2023. Changes between these dates are small but non-zero.
