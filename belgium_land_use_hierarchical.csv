@@ -1,0 +1,16 @@
+name,area_km2,color,parent
+Agriculture,13503,#4CAF50,
+Energy crops,550,#81C784,Agriculture
+Forest,6138,#1B5E20,
+Nature,4363,#8D6E63,
+Water bodies,143,#42A5F5,Nature
+Built-up,2762,#FFA000,
+Rooftop PV,65,#FFD54F,Built-up
+Transport,3803,#546E7A,
+Paths & tracks,250,#90A4AE,Transport
+Recreation,90,#00897B,
+Golf courses,45,#00796B,Recreation
+Football pitches,30,#009688,Recreation
+Renewable energy,29,#F57C00,
+Ground-mounted PV,15,#FFB300,Renewable energy
+Wind turbines,14,#E65100,Renewable energy

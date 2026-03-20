@@ -1,14 +1,27 @@
 # Belgium Land Use Map
 
-A Python tool that divides Belgium into 13 land-use regions with predetermined
+A Python tool that divides Belgium into land-use regions with predetermined
 areas, producing a publication-ready map inspired by the German
 "Flächennutzung Deutschland" visualisation.
 
+The tool supports two modes:
+
+- **Flat** — 13 independent categories, each forming one contiguous region.
+- **Hierarchical** — 7 parent sectors containing 14 sub-sectors, where
+  sub-sectors appear *inside* their parent on the map.
+
 ## Result
 
-- **13/13 categories** contiguous (single connected region each)
-- **Runtime:** ~3 seconds
-- **Output:** `belgium_land_use_grid.png`
+- **All categories** contiguous (single connected region each)
+- **Runtime:** ~2–3 seconds
+
+### Flat mode
+
+![Belgium Land Use — Flat](belgium_land_use.png)
+
+### Hierarchical mode
+
+![Belgium Land Use — Hierarchical](belgium_land_use_hierarchical.png)
 
 ## Quick Start
 
@@ -16,26 +29,36 @@ areas, producing a publication-ready map inspired by the German
 conda create -n belgium_land_use_env python=3.9 \
       geopandas shapely matplotlib numpy scipy
 conda activate belgium_land_use_env
+
+# Flat mode (13 independent categories — original behaviour)
 python belgium_land_use_grid.py
+# → belgium_land_use.png
+
+# Hierarchical mode (7 parent sectors with sub-sectors)
+python belgium_land_use_grid.py belgium_land_use_hierarchical.csv
+# → belgium_land_use_hierarchical.png
 ```
 
-The script reads `belgium_land_use.csv` (category data) and `belgium.geojson`
-(country boundary), then writes `belgium_land_use_grid.png`.
+The script reads a CSV file (category data) and `belgium.geojson` (country
+boundary). The output filename is derived from the CSV name.
 
 ## File Structure
 
 ```
 land_use_BE/
-├── belgium_land_use_grid.py         # Main algorithm + visualisation
-├── belgium_land_use.csv             # Land-use categories (name, area, color)
-├── belgium.geojson                  # Belgium boundary (EPSG:4326)
-├── belgium_boundary.geojson         # Alternative boundary
-├── germany.jpeg                     # Reference image for visual quality
-├── README.md                        # This file
-├── belgium_land_use_data_collection.md  # Detailed data-sourcing notes
-├── new_strategy.md                  # Algorithm design notes
+├── belgium_land_use_grid.py              # Main algorithm + visualisation
+├── belgium_land_use.csv                  # Flat categories (name, area, color)
+├── belgium_land_use_hierarchical.csv     # Hierarchical categories (+ parent column)
+├── belgium.geojson                       # Belgium boundary (EPSG:4326)
+├── belgium_boundary.geojson              # Alternative boundary
+├── belgium_land_use.png                  # Generated flat-mode map
+├── belgium_land_use_hierarchical.png     # Generated hierarchical-mode map
+├── cc-by.png                             # CC-BY licence icon
+├── germany.jpeg                          # Reference image for visual quality
+├── README.md                             # This file
+├── belgium_land_use_data_collection.md   # Detailed data-sourcing notes
 ├── .gitignore
-└── legacy/                          # Previous attempts and scripts
+└── legacy/                               # Previous attempts and scripts
 ```
 
 ## Algorithm
@@ -55,6 +78,15 @@ EPSG:3035) and proceeds in five phases:
    correctly prioritised. An O(1) ring-arc test guarantees contiguity is
    preserved at every swap.
 
+When a **hierarchical CSV** is provided (containing a `parent` column), the
+algorithm runs in two levels: first allocating parent sectors across the
+country (phases 1–5), then sub-allocating children within each parent's
+region. Children are grown as compact circular islands via BFS from the most
+interior point of the parent, while the parent's own colour fills the
+surrounding area. When all children fill the entire parent (no remaining
+parent area), the standard Voronoi partition is used instead. When the CSV has
+no `parent` column, the script behaves identically to the original flat mode.
+
 All phases are generic: the script accepts any country boundary and any set of
 categories via CSV. To adapt it to another country, provide a different
 GeoJSON and CSV file and call:
@@ -67,6 +99,8 @@ main(csv_path="other_country.csv",
 ```
 
 ## Land-Use Categories
+
+### Flat mode (`belgium_land_use.csv`)
 
 The 13 categories are mutually exclusive and sum to Belgium's official area of
 **30,688 km²** (Statbel, 2018 CADGIS measurement).
@@ -87,6 +121,34 @@ The 13 categories are mutually exclusive and sum to Belgium's official area of
 | 12 | Ground-mounted PV               |     15     |  0.05 %    | ~1,000 MW × 0.015 km²/MW |
 | 13 | Wind turbines (footprint)       |     14     |  0.05 %    | ~3,500 MW × 0.004 km²/MW |
 
+### Hierarchical mode (`belgium_land_use_hierarchical.csv`)
+
+The same land is reorganised into **7 parent sectors** with **sub-sectors
+placed inside** them on the map. Each parent's `area_km2` in the CSV is its
+**total** area; sub-sectors are carved out of the interior. The parent's
+colour remains visible as background around its children. Sub-sector areas do
+not have to sum to the parent's total.
+
+| Parent Sector (total area) | Sub-sector | Area (km²) |
+|---|---|---|
+| **Agriculture** (13,503 km²) | Energy crops | 550 |
+| **Forest** (6,138 km²) | — | — |
+| **Nature** (4,363 km²) | Water bodies | 143 |
+| **Built-up** (2,762 km²) | Rooftop PV | 65 |
+| **Transport** (3,803 km²) | Paths & tracks | 250 |
+| **Recreation** (90 km²) | Golf courses | 45 |
+| | Football pitches | 30 |
+| **Renewable energy** (29 km²) | Ground-mounted PV | 15 |
+| | Wind turbines | 14 |
+
+**Rooftop PV** (~65 km²) is a new category carved from the Built-up area.
+It estimates ~10.5 GW of rooftop solar capacity at ~6 m²/kWp panel footprint.
+
+The CSV uses a `parent` column to define the hierarchy. Rows without a parent
+value are top-level sectors (their `area_km2` is the total area of the
+sector). Rows with a parent value are sub-sectors placed inside that parent's
+region. If no `parent` column is present, the script falls back to flat mode.
+
 ### Accounting notes
 
 - **Agricultural land (others)** is the residual of Statbel's total
@@ -99,8 +161,9 @@ The 13 categories are mutually exclusive and sum to Belgium's official area of
 - **Built-up (9 %)** comes from Statbel's "residential lands", which groups
   residential, commercial, and industrial parcels. It may undercount some
   artificial surfaces captured by CLC.
-- **Sport and leisure (others)** (15 km²) is a rough estimate for facilities
-  (tennis, athletics, swimming, etc.) not covered by golf or football.
+- **Sport and leisure (others)** (15 km² in flat mode) is a rough estimate for
+  facilities (tennis, athletics, swimming, etc.) not covered by golf or
+  football. In hierarchical mode this is absorbed into the Recreation parent.
 
 ## Back-of-the-Envelope: Land for Mobility
 

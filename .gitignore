@@ -8,6 +8,9 @@ legacy/
 
 # Generated output files
 *.png
+!belgium_land_use.png
+!belgium_land_use_hierarchical.png
+!cc-by.png
 *.jpg
 *.jpeg
 belgium_*_regions*.geojson
