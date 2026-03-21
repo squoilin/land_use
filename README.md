@@ -1,27 +1,22 @@
-# Belgium Land Use Map
+# Land Use Map
 
-A Python tool that divides Belgium into land-use regions with predetermined
+A Python tool that divides a country into land-use regions with predetermined
 areas, producing a publication-ready map inspired by the German
 "Flächennutzung Deutschland" visualisation.
 
 The tool supports two modes:
 
-- **Flat** — 13 independent categories, each forming one contiguous region.
-- **Hierarchical** — 7 parent sectors containing 14 sub-sectors, where
-  sub-sectors appear *inside* their parent on the map.
+- **Flat** — independent categories, each forming one contiguous region.
+- **Hierarchical** — parent sectors containing sub-sectors, where sub-sectors
+  appear *inside* their parent on the map.
 
-## Result
+## Results
 
-- **All categories** contiguous (single connected region each)
-- **Runtime:** ~2–3 seconds
+- **Runtime:** ~2–3 seconds (500 m grid, ~122 K cells)
 
-### Flat mode
-
-![Belgium Land Use — Flat](belgium_land_use.png)
-
-### Hierarchical mode
-
-![Belgium Land Use — Hierarchical](belgium_land_use_hierarchical.png)
+| Flat (13 categories) | Hierarchical (7 parents, 14 leaves) |
+|---|---|
+| ![Belgium Flat](belgium_land_use.png) | ![Belgium Hierarchical](belgium_land_use_hierarchical.png) |
 
 ## Quick Start
 
@@ -30,49 +25,78 @@ conda create -n belgium_land_use_env python=3.9 \
       geopandas shapely matplotlib numpy scipy
 conda activate belgium_land_use_env
 
-# Flat mode (13 independent categories — original behaviour)
+# Belgium — flat mode (default)
 python belgium_land_use_grid.py
 # → belgium_land_use.png
 
-# Hierarchical mode (7 parent sectors with sub-sectors)
+# Belgium — hierarchical mode
 python belgium_land_use_grid.py belgium_land_use_hierarchical.csv
 # → belgium_land_use_hierarchical.png
 ```
 
-The script reads a CSV file (category data) and `belgium.geojson` (country
-boundary). The output filename is derived from the CSV name.
+The script takes up to three positional arguments:
+
+```
+python belgium_land_use_grid.py [csv_file] [boundary.geojson] [country_name]
+```
+
+- `csv_file` — category data (default: `belgium_land_use.csv`)
+- `boundary.geojson` — country boundary in EPSG:4326 (default: `belgium.geojson`)
+- `country_name` — display name, auto-detected from the boundary filename if omitted
+
+The output filename is derived from the CSV name.
+
+## Other Countries
+
+The script is fully generic and can be applied to any country by providing a
+boundary GeoJSON and a CSV file with categories. For example:
+
+```bash
+python belgium_land_use_grid.py other_land_use.csv other.geojson "Other Country"
+```
+
+**France** data and methodology are documented in
+[france_land_use_data_collection.md](france_land_use_data_collection.md).
 
 ## File Structure
 
 ```
 land_use_BE/
-├── belgium_land_use_grid.py              # Main algorithm + visualisation
-├── belgium_land_use.csv                  # Flat categories (name, area, color)
-├── belgium_land_use_hierarchical.csv     # Hierarchical categories (+ parent column)
+├── belgium_land_use_grid.py              # Main algorithm + visualisation (generic)
+├── belgium_land_use.csv                  # Belgium flat categories (name, area, color)
+├── belgium_land_use_hierarchical.csv     # Belgium hierarchical (+ parent column)
 ├── belgium.geojson                       # Belgium boundary (EPSG:4326)
 ├── belgium_boundary.geojson              # Alternative boundary
-├── belgium_land_use.png                  # Generated flat-mode map
-├── belgium_land_use_hierarchical.png     # Generated hierarchical-mode map
+├── belgium_land_use.png                  # Generated Belgium flat-mode map
+├── belgium_land_use_hierarchical.png     # Generated Belgium hierarchical map
+├── france_land_use.csv                   # France flat categories (15 categories)
+├── france_land_use_hierarchical.csv      # France hierarchical (8 parents, 16 leaves)
+├── france.geojson                        # France metropolitan boundary (EPSG:4326)
+├── france_land_use_hierarchical.png      # Generated France hierarchical map
+├── france_land_use_data_collection.md    # France data collection notes
 ├── cc-by.png                             # CC-BY licence icon
 ├── germany.jpeg                          # Reference image for visual quality
 ├── README.md                             # This file
-├── belgium_land_use_data_collection.md   # Detailed data-sourcing notes
+├── belgium_land_use_data_collection.md   # Belgium data-sourcing notes
 ├── .gitignore
 └── legacy/                               # Previous attempts and scripts
 ```
 
 ## Algorithm
 
-The approach rasterises Belgium onto a 500 m regular grid (~122 K cells in
-EPSG:3035) and proceeds in five phases:
+The approach rasterises a country boundary onto a 500 m regular grid
+(EPSG:3035) and proceeds in five phases:
 
 1. **Rasterise** the country boundary into a boolean mask.
-2. **Seed placement** via farthest-point sampling — larger categories get more
-   interior positions.
+2. **Seed placement** via farthest-point sampling on the main landmass,
+   then assignment to categories by natural Voronoi territory size (largest
+   category gets the seed commanding the most territory).
 3. **Weighted Voronoi** — iteratively adjust additive weights so that each
    region converges to its target pixel count.
 4. **Connectivity fix** — BFS from each seed keeps only the connected
-   component; orphaned pixels are reassigned to neighbours.
+   component; orphaned pixels are reassigned to neighbours. Isolated pixels
+   (e.g. on islands like Corsica) are assigned to the nearest category by
+   Euclidean distance.
 5. **Border pixel swapping** — iteratively swap border pixels between adjacent
    regions, using percentage-based error scoring so that small categories are
    correctly prioritised. An O(1) ring-arc test guarantees contiguity is
@@ -84,18 +108,17 @@ country (phases 1–5), then sub-allocating children within each parent's
 region. Children are grown as compact circular islands via BFS from the most
 interior point of the parent, while the parent's own colour fills the
 surrounding area. When all children fill the entire parent (no remaining
-parent area), the standard Voronoi partition is used instead. When the CSV has
-no `parent` column, the script behaves identically to the original flat mode.
+parent area), the standard Voronoi partition is used instead. For very small
+parent regions (< 2000 pixels), the standard Voronoi is used regardless.
+When the CSV has no `parent` column, the script behaves identically to the
+original flat mode.
 
-All phases are generic: the script accepts any country boundary and any set of
-categories via CSV. To adapt it to another country, provide a different
-GeoJSON and CSV file and call:
+All phases are fully generic: the script accepts any country boundary and any
+set of categories via CSV. To adapt it to another country, provide a different
+GeoJSON and CSV file:
 
-```python
-main(csv_path="other_country.csv",
-     boundary_file="other_country.geojson",
-     country_name="Other Country",
-     output_prefix="other_country_land_use")
+```bash
+python belgium_land_use_grid.py other_land_use.csv other.geojson
 ```
 
 ## Land-Use Categories
@@ -111,7 +134,7 @@ The 13 categories are mutually exclusive and sum to Belgium's official area of
 |  2 | Forest                          |  6,138     | 20.0 %     | Statbel land register |
 |  3 | Other natural/semi-natural/rest |  4,220     | 13.8 %     | Residual to reach 100 % |
 |  4 | Roads and rail infrastructure   |  3,553     | 11.6 %     | Statbel land register |
-|  5 | Built-up (residential, industry)|  2,762     |  9.0 %     | Statbel "residential lands" |
+|  5 | Buildings (residential, industry)|  2,762     |  9.0 %     | Statbel "residential lands" |
 |  6 | Energy crops                    |    550     |  1.8 %     | Biogas sector data + bioethanol plant-level estimates |
 |  7 | Paths/tracks                    |    250     |  0.8 %     | OSM lengths × typical widths |
 |  8 | Water bodies (inland)           |    143     |  0.5 %     | Statbel / CLC 511 + 512 |
@@ -134,14 +157,14 @@ not have to sum to the parent's total.
 | **Agriculture** (13,503 km²) | Energy crops | 550 |
 | **Forest** (6,138 km²) | — | — |
 | **Nature** (4,363 km²) | Water bodies | 143 |
-| **Built-up** (2,762 km²) | Rooftop PV | 65 |
+| **Buildings** (2,762 km²) | Rooftop PV | 65 |
 | **Transport** (3,803 km²) | Paths & tracks | 250 |
 | **Recreation** (90 km²) | Golf courses | 45 |
 | | Football pitches | 30 |
 | **Renewable energy** (29 km²) | Ground-mounted PV | 15 |
 | | Wind turbines | 14 |
 
-**Rooftop PV** (~65 km²) is a new category carved from the Built-up area.
+**Rooftop PV** (~65 km²) is a new category carved from the Buildings area.
 It estimates ~10.5 GW of rooftop solar capacity at ~6 m²/kWp panel footprint.
 
 The CSV uses a `parent` column to define the hierarchy. Rows without a parent
@@ -158,7 +181,7 @@ region. If no `parent` column is present, the script falls back to flat mode.
   agricultural/forest/residual pool.
 - **Other natural/rest** is the balancing residual. It absorbs heathland,
   scrub, bare rock, beaches, wetlands, estuaries, and any unaccounted-for land.
-- **Built-up (9 %)** comes from Statbel's "residential lands", which groups
+- **Buildings (9 %)** comes from Statbel's "residential lands", which groups
   residential, commercial, and industrial parcels. It may undercount some
   artificial surfaces captured by CLC.
 - **Sport and leisure (others)** (15 km² in flat mode) is a rough estimate for
@@ -335,7 +358,7 @@ This category captures all land uses that don't fit into the above classificatio
    difference shifts between "Forest" and "Other natural/rest" depending on
    which definition is used.
 
-5. **Built-up undercount.** The 9 % Statbel figure may miss some industrial
+5. **Buildings undercount.** The 9 % Statbel figure may miss some industrial
    zones, ports, and airports that CLC classifies as artificial.
 
 6. **Energy crops uncertainty.** The 550 km² is built bottom-up from biogas sector reports (Wallonia/Flanders), plant-level biorefinery data (BioWanze, Alco Bio Fuel), and crop statistics (Statbel). The largest unknowns are the domestic sourcing fractions for bioethanol feedstock and the share of silage maize going to biogas. No single published series exists for Belgium that captures all multi-purpose energy crops while correctly excluding residues.
@@ -368,3 +391,21 @@ This category captures all land uses that don't fit into the above classificatio
 Belgium's total surface area: **30,688 km²** (Statbel, 2018 CADGIS-based
 measurement, including coastal area to the low-water line for the ten coastal
 municipalities).
+
+## License and authorship
+
+**Author:** [Sylvain Quoilin](mailto:squoilin@ulg.ac.be)
+
+- **Source code** (Python scripts and other program files in this repository)
+  is licensed under the [MIT License](LICENSE).
+
+- **Generated map figures** (PNG outputs from the scripts, e.g.
+  `belgium_land_use.png`, `belgium_land_use_hierarchical.png`,
+  `france_land_use_hierarchical.png`) are licensed under [Creative Commons
+  Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
+  You may share and adapt them with appropriate credit. The CC BY badge is
+  included in the repository as `cc-by.png` for attribution graphics if needed.
+
+Input data files (CSV, GeoJSON from third parties) remain under their
+respective original terms; this section applies to this project’s code and
+to figures produced by running it.

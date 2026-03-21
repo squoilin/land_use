@@ -135,9 +135,9 @@ def load_and_rasterize(boundary_file="belgium.geojson"):
     t0 = time.time()
 
     gdf = gpd.read_file(boundary_file).to_crs(TARGET_CRS)
-    belgium = gdf.geometry.unary_union
+    country = gdf.geometry.unary_union
 
-    minx, miny, maxx, maxy = belgium.bounds
+    minx, miny, maxx, maxy = country.bounds
     minx -= RESOLUTION
     miny -= RESOLUTION
     maxx += RESOLUTION
@@ -149,7 +149,7 @@ def load_and_rasterize(boundary_file="belgium.geojson"):
     x_coords = minx + (np.arange(width) + 0.5) * RESOLUTION
     y_coords = maxy - (np.arange(height) + 0.5) * RESOLUTION
 
-    polys = list(belgium.geoms) if isinstance(belgium, MultiPolygon) else [belgium]
+    polys = list(country.geoms) if isinstance(country, MultiPolygon) else [country]
 
     xx, yy = np.meshgrid(x_coords, y_coords)
     points = np.column_stack([xx.ravel(), yy.ravel()])
@@ -165,12 +165,12 @@ def load_and_rasterize(boundary_file="belgium.geojson"):
 
     n_pixels = int(mask.sum())
     pix_km2 = (RESOLUTION / 1000) ** 2
-    print(f"  Grid {width}x{height}, {n_pixels} cells inside Belgium "
+    print(f"  Grid {width}x{height}, {n_pixels} cells inside country "
           f"({n_pixels * pix_km2:.0f} km², pixel={pix_km2} km²)")
     print(f"  Time: {time.time() - t0:.1f}s")
 
     tf = {"minx": minx, "maxy": maxy, "res": RESOLUTION}
-    return mask, belgium, tf
+    return mask, country, tf
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +178,7 @@ def load_and_rasterize(boundary_file="belgium.geojson"):
 # ---------------------------------------------------------------------------
 
 def place_seeds(mask, categories):
-    """Place seeds using farthest-point sampling; most interior first."""
+    """Place seeds via farthest-point sampling; assign to categories by territory."""
     print("Phase 2: Placing seeds (farthest-point sampling)...")
     t0 = time.time()
 
@@ -186,8 +186,16 @@ def place_seeds(mask, categories):
     h, w = mask.shape
     dist_border = distance_transform_edt(mask).astype(np.float32)
 
+    labeled, n_comp = ndlabel(mask)
+    if n_comp > 1:
+        comp_sizes = np.array([(labeled == i + 1).sum() for i in range(n_comp)])
+        main_label = int(np.argmax(comp_sizes)) + 1
+        main_mask = (labeled == main_label)
+    else:
+        main_mask = mask
+
     rows, cols = np.mgrid[0:h, 0:w]
-    seeds = []
+    raw_seeds = []
     min_dist_seeds = np.full((h, w), np.inf, dtype=np.float32)
 
     for i in range(n_cats):
@@ -195,15 +203,30 @@ def place_seeds(mask, categories):
             score = dist_border.copy()
         else:
             score = min_dist_seeds.copy()
-        score[~mask] = -np.inf
+        score[~main_mask] = -np.inf
         idx = int(np.argmax(score.ravel()))
         r, c = np.unravel_index(idx, (h, w))
-        seeds.append((int(r), int(c)))
+        raw_seeds.append((int(r), int(c)))
 
         d = np.sqrt((rows - r) ** 2 + (cols - c) ** 2).astype(np.float32)
         min_dist_seeds = np.minimum(min_dist_seeds, d)
 
-    seeds.sort(key=lambda s: dist_border[s[0], s[1]], reverse=True)
+    nat_grid = np.full((h, w), -1, dtype=np.int16)
+    nat_dist = np.full((h, w), np.inf, dtype=np.float32)
+    for i, (r, c) in enumerate(raw_seeds):
+        d = np.sqrt((rows - r) ** 2 + (cols - c) ** 2).astype(np.float32)
+        closer = d < nat_dist
+        nat_grid[closer] = i
+        nat_dist[closer] = d[closer]
+    nat_grid[~mask] = -1
+    nat_counts = np.array([int((nat_grid == i).sum()) for i in range(n_cats)])
+
+    cat_by_area = np.argsort([-c["area_km2"] for c in categories])
+    seed_by_territory = np.argsort(-nat_counts)
+
+    seeds = [None] * n_cats
+    for cat_rank in range(n_cats):
+        seeds[int(cat_by_area[cat_rank])] = raw_seeds[int(seed_by_territory[cat_rank])]
 
     for i, (r, c) in enumerate(seeds):
         print(f"  Seed {i:2d} ({categories[i]['name']:<22s}): "
@@ -327,8 +350,24 @@ def fix_connectivity(grid, mask, seeds, n_cats):
                     fixed[nr, nc] = cat
                     q.append((nr, nc))
 
-    remaining = int(((fixed == -1) & mask).sum())
-    print(f"  Disconnected pixels: {total_disc}, reassigned, remaining unassigned: {remaining}")
+    remaining_mask = (fixed == -1) & mask
+    remaining = int(remaining_mask.sum())
+    if remaining > 0:
+        best_cat = np.full((h, w), -1, dtype=np.int16)
+        best_dist = np.full((h, w), np.inf, dtype=np.float32)
+        for ci in range(n_cats):
+            cat_pixels = (fixed == ci)
+            if not cat_pixels.any():
+                continue
+            d = distance_transform_edt(~cat_pixels).astype(np.float32)
+            closer = d < best_dist
+            best_cat[closer] = ci
+            best_dist[closer] = d[closer]
+        fixed[remaining_mask] = best_cat[remaining_mask]
+        print(f"  Assigned {remaining} isolated pixels by nearest-category distance")
+
+    final_remaining = int(((fixed == -1) & mask).sum())
+    print(f"  Disconnected pixels: {total_disc}, remaining unassigned: {final_remaining}")
     print(f"  Time: {time.time() - t0:.1f}s")
     return fixed
 
@@ -483,10 +522,10 @@ def allocate_region(mask, categories, label=""):
 
 
 def allocate_interior_islands(parent_mask, sub_cats, label=""):
-    """Place children as compact circular islands in the parent interior.
+    """Place children as compact organic islands in the parent interior.
 
     Each child is grown outward from the most interior available point via
-    BFS sorted by Euclidean distance, producing nearly circular contiguous
+    BFS with noise-perturbed distance, producing irregular contiguous
     regions.  The parent-remaining (if any) fills whatever is left.
     """
     h, w = parent_mask.shape
@@ -521,6 +560,18 @@ def allocate_interior_islands(parent_mask, sub_cats, label=""):
     available = parent_mask.copy()
     dirs4 = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
+    # Generate smooth noise field for organic (non-circular) shapes
+    from scipy.ndimage import gaussian_filter
+    rng = np.random.RandomState(42)
+    raw_noise = rng.randn(h, w).astype(np.float32)
+    smooth_noise = gaussian_filter(raw_noise, sigma=8.0)
+    # Normalise to [0, 1] range
+    nmin, nmax = smooth_noise.min(), smooth_noise.max()
+    if nmax > nmin:
+        smooth_noise = (smooth_noise - nmin) / (nmax - nmin)
+    else:
+        smooth_noise[:] = 0.5
+
     children.sort(key=lambda x: x[1]["area_km2"], reverse=True)
 
     for _, (i, cat) in enumerate(children):
@@ -553,6 +604,8 @@ def allocate_interior_islands(parent_mask, sub_cats, label=""):
                         and available[nr, nc] and not in_heap[nr, nc]):
                     in_heap[nr, nc] = True
                     nd = np.sqrt((nr - sr) ** 2 + (nc - sc) ** 2)
+                    # Perturb distance with smooth noise for organic shapes
+                    nd *= (1.0 + 0.5 * smooth_noise[nr, nc])
                     heapq.heappush(heap, (nd, nr, nc))
 
         child_dist = distance_transform_edt(~(grid == i)).astype(np.float32)
@@ -659,12 +712,15 @@ def _find_label_position(cr, cc, mask, country_cr, country_cc, offset_px=30):
     return cr + dr * (exit_step + offset_px), cc + dc * (exit_step + offset_px)
 
 
-def _resolve_collisions(positions, min_gap, iterations=60, aspect=1.0):
+def _resolve_collisions(positions, min_gap, iterations=60, aspect=1.0,
+                        boundary_func=None):
     """Push (x, y) positions apart so no two label bounding boxes overlap.
 
     aspect: width/height ratio of label boxes.  When > 1 the horizontal gap
     is scaled up accordingly (AABB collision).  aspect=1.0 falls back to
     the original circular distance check for backward compatibility.
+    boundary_func: optional callable(x, y) -> (push_x, push_y) that returns
+        a displacement to push a label outside the country boundary.
     """
     pos = [list(p) for p in positions]
     for _ in range(iterations):
@@ -700,6 +756,14 @@ def _resolve_collisions(positions, min_gap, iterations=60, aspect=1.0):
                         pos[j][0] -= push * nx
                         pos[j][1] -= push * ny
                         moved = True
+        # Push labels out of the country boundary
+        if boundary_func is not None:
+            for i in range(len(pos)):
+                px, py = boundary_func(pos[i][0], pos[i][1])
+                if px != 0 or py != 0:
+                    pos[i][0] += px
+                    pos[i][1] += py
+                    moved = True
         if not moved:
             break
     return [(p[0], p[1]) for p in pos]
@@ -758,13 +822,35 @@ def visualize(grid, mask, country_geom, tf, leaf_cats, parent_groups,
         for li in pg["leaf_indices"]:
             parent_of[grid == li] = pi
 
+    # ---- build parent color lookup for hatching -------------------------
+    parent_color_of_leaf = {}
+    for pg in parent_groups:
+        prgb = [int(pg["color"][1:3], 16) / 255,
+                int(pg["color"][3:5], 16) / 255,
+                int(pg["color"][5:7], 16) / 255]
+        for li in pg["leaf_indices"]:
+            parent_color_of_leaf[li] = prgb
+
+    # Diagonal stripe mask for child hatching (scale with grid size)
+    rr, cc_arr = np.mgrid[0:h, 0:w]
+    stripe_period = max(6, max(h, w) // 90)
+    stripe_width = max(1, stripe_period // 3)
+    stripe = ((rr + cc_arr) % stripe_period) < stripe_width
+
     # ---- raster image ---------------------------------------------------
     img = np.ones((h, w, 3), dtype=np.float32)
     for i, cat in enumerate(leaf_cats):
         rgb = [int(cat["color"][1:3], 16) / 255,
                int(cat["color"][3:5], 16) / 255,
                int(cat["color"][5:7], 16) / 255]
-        img[grid == i] = rgb
+        cat_pixels = (grid == i)
+        img[cat_pixels] = rgb
+        # Add diagonal stripes in parent color for child sub-categories
+        if not cat.get("is_parent_remaining", False) and cat.get("parent_name"):
+            prgb = parent_color_of_leaf.get(i)
+            if prgb is not None:
+                hatch_pixels = cat_pixels & stripe
+                img[hatch_pixels] = prgb
     img[~mask] = [1, 1, 1]
 
     fig, ax = plt.subplots(figsize=(16, 12))
@@ -806,14 +892,49 @@ def visualize(grid, mask, country_geom, tf, leaf_cats, parent_groups,
         area_frac = cat["area_km2"] / total_area
 
         if area_frac >= small_threshold:
-            large_labels.append(dict(cat=cat, cx=cx, cy=cy, frac=area_frac))
+            large_labels.append(dict(cat=cat, cx=cx, cy=cy, frac=area_frac,
+                                     idx=i))
         else:
             lr, lc = _find_label_position(
-                cr, cc, mask, country_cr, country_cc, offset_px=40)
+                cr, cc, mask, country_cr, country_cc, offset_px=60)
             lx = tf["minx"] + (lc + 0.5) * res
             ly = tf["maxy"] - (lr + 0.5) * res
             small_labels.append(dict(cat=cat, cx=cx, cy=cy,
                                      lx=lx, ly=ly, frac=area_frac))
+
+    # ---- for parent-remaining labels, shift away from children ----------
+    if has_hierarchy:
+        # Collect bounding circles of child (non-parent-remaining) large labels
+        child_regions = []  # (center_row, center_col, radius_px)
+        for lb in large_labels:
+            cat = lb["cat"]
+            if not cat.get("is_parent_remaining", False):
+                cat_mask_i = (grid == lb["idx"])
+                if cat_mask_i.any():
+                    ys_c, xs_c = np.where(cat_mask_i)
+                    cr_c, cc_c = float(ys_c.mean()), float(xs_c.mean())
+                    rad = np.sqrt(cat_mask_i.sum() / np.pi)
+                    child_regions.append((cr_c, cc_c, rad))
+
+        for lb in large_labels:
+            cat = lb["cat"]
+            if cat.get("is_parent_remaining", False):
+                # Find the best label position: most interior point of
+                # parent-remaining pixels, away from children
+                cat_mask_i = (grid == lb["idx"])
+                if cat_mask_i.any():
+                    interior = distance_transform_edt(cat_mask_i).astype(np.float32)
+                    # Penalise proximity to child regions
+                    for (cr_c, cc_c, rad) in child_regions:
+                        d_child = np.sqrt((np.arange(h)[:, None] - cr_c) ** 2 +
+                                          (np.arange(w)[None, :] - cc_c) ** 2)
+                        penalty = np.clip(1.0 - d_child / max(rad * 1.5, 1), 0, 1)
+                        interior -= penalty * interior.max() * 2
+                    interior[~cat_mask_i] = -np.inf
+                    best = np.unravel_index(int(np.argmax(interior.ravel())),
+                                           (h, w))
+                    lb["cx"] = tf["minx"] + (best[1] + 0.5) * res
+                    lb["cy"] = tf["maxy"] - (best[0] + 0.5) * res
 
     # ---- draw large labels (inside the regions) -------------------------
     for lb in large_labels:
@@ -826,37 +947,53 @@ def visualize(grid, mask, country_geom, tf, leaf_cats, parent_groups,
     if small_labels:
         raw_pos = [(s["lx"], s["ly"]) for s in small_labels]
         span = max(extent[1] - extent[0], extent[3] - extent[2])
-        gap = span * 0.055
-        resolved = _resolve_collisions(raw_pos, min_gap=gap, iterations=200,
-                                       aspect=2.5)
 
-        y_max_label = extent[3] + span * 0.02
-        resolved = [(lx, min(ly, y_max_label)) for lx, ly in resolved]
-        resolved = _resolve_collisions(resolved, min_gap=gap, iterations=200,
-                                       aspect=2.5)
+        # Estimate label box size in map units for pixel-accurate gaps.
+        fig_h_px = fig.get_figheight() * fig.dpi
+        mu_per_px = span / max(fig_h_px, 1)
+        label_h = 49 * mu_per_px
+        label_w = 150 * mu_per_px
+        gap_y = label_h * 1.6
+        gap_x = label_w * 1.3
+        gap = gap_y
+        aspect = gap_x / gap_y
 
+        # Build boundary push function: if a label center is inside the
+        # country (or too close), push it outward along the radial direction.
         mask_dist = distance_transform_edt(~mask).astype(np.float32)
-        min_margin_px = 20
-        for k in range(len(resolved)):
-            lx, ly = resolved[k]
+        min_margin_px = int(label_h / res * 0.6)  # half label height in pixels
+
+        def _boundary_push(lx, ly):
             lc_g = (lx - extent[0]) / res
             lr_g = (extent[3] - ly) / res
             lr_i, lc_i = int(round(lr_g)), int(round(lc_g))
-            if (0 <= lr_i < h and 0 <= lc_i < w
-                    and mask_dist[lr_i, lc_i] < min_margin_px):
-                push = min_margin_px - mask_dist[lr_i, lc_i] + 5
-                vec_r = lr_g - country_cr
-                vec_c = lc_g - country_cc
-                vlen = max(np.sqrt(vec_r ** 2 + vec_c ** 2), 1.0)
-                resolved[k] = (lx + (vec_c / vlen) * push * res,
-                                ly - (vec_r / vlen) * push * res)
+            if not (0 <= lr_i < h and 0 <= lc_i < w):
+                return (0.0, 0.0)
+            d = mask_dist[lr_i, lc_i]
+            if d >= min_margin_px:
+                return (0.0, 0.0)
+            push = (min_margin_px - d + 3) * res
+            vec_c = lc_g - country_cc
+            vec_r = lr_g - country_cr
+            vlen = max(np.sqrt(vec_r ** 2 + vec_c ** 2), 1.0)
+            return (vec_c / vlen * push, -vec_r / vlen * push)
+
+        resolved = _resolve_collisions(raw_pos, min_gap=gap, iterations=500,
+                                       aspect=aspect,
+                                       boundary_func=_boundary_push)
+
+        y_max_label = extent[3] + span * 0.02
+        resolved = [(lx, min(ly, y_max_label)) for lx, ly in resolved]
+        resolved = _resolve_collisions(resolved, min_gap=gap, iterations=500,
+                                       aspect=aspect,
+                                       boundary_func=_boundary_push)
 
         for k, sl in enumerate(small_labels):
             lx, ly = resolved[k]
             cat = sl["cat"]
             ax.annotate(
                 cat["name"], xy=(sl["cx"], sl["cy"]), xytext=(lx, ly),
-                fontsize=13, fontweight="bold",
+                fontsize=11, fontweight="bold",
                 color=_text_color(cat["color"]),
                 arrowprops=dict(arrowstyle="-", color="#444444", lw=1.0,
                                 connectionstyle="arc3,rad=0.12"),
@@ -865,7 +1002,7 @@ def visualize(grid, mask, country_geom, tf, leaf_cats, parent_groups,
                 ha="center", va="center", zorder=6,
             )
             ax.plot(sl["cx"], sl["cy"], "o", color=cat["color"],
-                    markersize=6, markeredgecolor="#333", markeredgewidth=1,
+                    markersize=5, markeredgecolor="#333", markeredgewidth=0.8,
                     zorder=7)
 
     # ---- hierarchical legend --------------------------------------------
@@ -998,7 +1135,8 @@ def main(csv_path="belgium_land_use.csv", boundary_file="belgium.geojson",
         else:
             sub_cats = [leaf_cats[li] for li in leaves]
             has_remaining = any(c.get("is_parent_remaining") for c in sub_cats)
-            if has_remaining:
+            parent_pixels = int(parent_mask.sum())
+            if has_remaining and parent_pixels > 2000:
                 sub_grid = allocate_interior_islands(
                     parent_mask, sub_cats, label=pg["name"])
             else:
@@ -1025,5 +1163,24 @@ def main(csv_path="belgium_land_use.csv", boundary_file="belgium.geojson",
 if __name__ == "__main__":
     import sys, os
     csv_file = sys.argv[1] if len(sys.argv) > 1 else "belgium_land_use.csv"
+
+    # Auto-detect boundary from CSV name if not provided explicitly.
+    # E.g. "france_land_use.csv" → "france.geojson"
+    if len(sys.argv) > 2:
+        boundary = sys.argv[2]
+    else:
+        csv_base = os.path.splitext(os.path.basename(csv_file))[0]
+        # Strip known suffixes to get the country name
+        country_guess = csv_base
+        for suffix in ("_land_use_hierarchical", "_land_use"):
+            if country_guess.endswith(suffix):
+                country_guess = country_guess[:-len(suffix)]
+                break
+        candidate = f"{country_guess}.geojson"
+        boundary = candidate if os.path.isfile(candidate) else "belgium.geojson"
+
+    country = (sys.argv[3] if len(sys.argv) > 3
+               else os.path.splitext(os.path.basename(boundary))[0].title())
     prefix = os.path.splitext(csv_file)[0]
-    main(csv_path=csv_file, output_prefix=prefix)
+    main(csv_path=csv_file, boundary_file=boundary,
+         country_name=country, output_prefix=prefix)

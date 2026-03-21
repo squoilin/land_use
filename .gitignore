@@ -10,6 +10,7 @@ legacy/
 *.png
 !belgium_land_use.png
 !belgium_land_use_hierarchical.png
+!france_land_use_hierarchical.png
 !cc-by.png
 *.jpg
 *.jpeg

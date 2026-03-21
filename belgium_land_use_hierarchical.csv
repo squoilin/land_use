@@ -4,8 +4,8 @@ Energy crops,550,#81C784,Agriculture
 Forest,6138,#1B5E20,
 Nature,4363,#8D6E63,
 Water bodies,143,#42A5F5,Nature
-Built-up,2762,#FFA000,
-Rooftop PV,65,#FFD54F,Built-up
+Buildings,2762,#FFA000,
+Rooftop PV,65,#FFD54F,Buildings
 Transport,3803,#546E7A,
 Paths & tracks,250,#90A4AE,Transport
 Recreation,90,#00897B,
